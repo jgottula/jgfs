@@ -15,12 +15,14 @@
 /* argp structures */
 error_t parse_opt(int, char *, struct argp_state *);
 static const char doc[] = "Initialize jgfs on a block device.";
-static const char args_doc[] = "DEVICE LABEL";
+static const char args_doc[] = "DEVICE";
 static struct argp_option options[] = {
+	{ 0, 'L', "LABEL", 0,
+		"volume label", 0 },
+	{ 0, 's', "NUMBER", 0,
+		"filesystem size in sectors", 0 },
 	{ 0, 'c', "NUMBER", 0,
 		"sectors per cluster [must be power of two]", 0 },
-	{ 0, 's', "SIZE", 0,
-		"filesystem size [suffixes: s c K M]", 0 },
 	{ 0 }
 };
 static struct argp argp =
@@ -29,21 +31,29 @@ static struct argp argp =
 struct {
 	char    *dev_path;
 	char    *vol_label;
-	uint8_t  sect_per_cluster;
-	
-	struct {
-		uint32_t quantity;
-		enum { SUFFIX_NONE, SUFFIX_SECT, SUFFIX_CLUSTER, SUFFIX_K, SUFFIX_M }
-			suffix;
-	} fs_size;
-} param = { NULL, NULL, 1, { 0, SUFFIX_NONE } };
+	uint16_t nr_sect;
+	uint16_t sect_per_cluster;
+} param = { NULL, NULL, 0, 1 };
 
 
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	switch (key) {
+	case 'L':
+		param.vol_label = strdup(arg);
+		break;
+	case 's':
+		switch (sscanf(arg, "%" SCNu16, &param.nr_sect)) {
+		case EOF:
+			warnx("number of sectors: can't read that!");
+			argp_usage(state);
+		case 1:
+			break;
+		default:
+			assert(0);
+		}
+		break;
 	case 'c':
-		switch (sscanf(arg, "%" SCNu8,
-			&param.sect_per_cluster)) {
+		switch (sscanf(arg, "%" SCNu16, &param.sect_per_cluster)) {
 		case EOF:
 			warnx("sect per cluster: can't read that!");
 			argp_usage(state);
@@ -53,39 +63,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			assert(0);
 		}
 		break;
-	case 's':
-	{
-		char suffix;
-		switch (sscanf(arg, "%" SCNu32 "%c",
-			&param.fs_size.quantity, &suffix)) {
-		case EOF:
-			warnx("fs size: can't read that!");
-			argp_usage(state);
-		case 2:
-			if (suffix == 's') {
-				param.fs_size.suffix = SUFFIX_SECT;
-			} else if (suffix == 'c') {
-				param.fs_size.suffix = SUFFIX_CLUSTER;
-			} else if (suffix == 'K') {
-				param.fs_size.suffix = SUFFIX_K;
-			} else if (suffix == 'M') {
-				param.fs_size.suffix = SUFFIX_M;
-			} else {
-				warnx("fs size: bad suffix!");
-				argp_usage(state);
-			}
-		case 1:
-			break;
-		default:
-			assert(0);
-		}
-	}
-		break;
 	case ARGP_KEY_ARG:
 		if (state->arg_num == 0) {
 			param.dev_path = strdup(arg);
-		} else if (state->arg_num == 1) {
-			param.vol_label = strdup(arg);
 		} else {
 			warnx("excess argument(s)");
 			argp_usage(state);
@@ -94,9 +74,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	case ARGP_KEY_END:
 		if (state->arg_num < 1) {
 			warnx("device not specified");
-			argp_usage(state);
-		} else if (state->arg_num < 2) {
-			warnx("label not specified");
 			argp_usage(state);
 		}
 		break;
@@ -121,6 +98,7 @@ int main(int argc, char **argv) {
  * - fs size must be above a certain minimum
  * - fs size must be an integer number of clusters
  * - fs size in clusters must not exceed entry size in bits
+ * - reserved area + fat table + nr of clusters must <= fs size
  * write data structures
  * report statistics
  * call sync(2) when done

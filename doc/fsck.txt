@@ -1,0 +1,61 @@
+jgfsck
+
+header:
+- check magic number
+- check version
+- check label
+  - zero-padded
+  - at most 31 characters
+  - no bad characters
+- check uuid
+  - xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  - y is [89ab]
+- check cluster size
+  - anything over 0 is probably bad for now
+- check fs size
+  - must be at least as large as reserved area + fat + root dir (1 cluster)
+  - should not be larger than reserved + largest possible fat + max clusters
+    - max clusters is FAT_LAST + 1
+- check fat size
+  - cannot be zero
+  - should be at least large enough for all clusters present in the filesystem
+  - should not be >=512 bytes larger than needed for all clusters
+  - should not be greater than 64 sectors in size
+- ensure that the end of the header sector is zeroed out
+- clear the dirty flag if all checks pass
+
+fat:
+- all inaccessible clusters should be marked FAT_OOB
+- no accessible clusters should be marked FAT_OOB
+- no clusters should contain FAT_ROOT
+- no two files should share a cluster in the range 1~FAT_LAST
+  - to check this, iterate over all fat entries 1~FAT_LAST and for each one,
+    if listed as a normal/EOF cluster, check that only one OTHER cluster in the
+    1~FAT_LAST range references this cluster
+  - this is incompatible with hard links
+
+files:
+- the cluster chain should have no loops
+- the cluster chain should consist only of 1~FAT_LAST and FAT_EOF
+- check for orphaned clusters (referenced by no other clusters or by files)
+- files must not reference reserved/bad/free sectors at any point in the chain
+
+dirs:
+- no loops
+- validate dirents
+- check parent validity
+
+links:
+- check for broken symlinks (?)
+
+device:
+- verify that the fs does not exceed the device bounds
+- check for unreadable sectors
+  - mark these as bad?
+
+report:
+- all relevant header fields
+- number of clusters
+- used size
+- total usable data size
+- bootable flag presence

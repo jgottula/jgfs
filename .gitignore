@@ -1,3 +1,4 @@
 *.sublime-*
 bin/
 src/*/*.dep
+*.o

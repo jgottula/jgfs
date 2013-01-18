@@ -1,0 +1,13 @@
+package "mkjgfs"
+version "0x001"
+#purpose "creates a new jgfs filesystem on a block device"
+purpose "purpose"
+#usage ""
+description "description"
+versiontext "versiontext (bsd license)"
+
+args "--default-optional"
+
+option "size" s "desc"
+	details="detailed desc"
+	long typestr="typestr"

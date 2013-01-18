@@ -8,22 +8,32 @@ CFLAGS:=-std=gnu11 -O2 -g -Wall -Wextra -flto
 LDFLAGS:=
 LIBS:=
 
+FUSE_BIN:=bin/jgfs
+MKFS_BIN:=bin/mkjgfs
+FSCK_BIN:=bin/jgfsck
+
 # resolved when referenced
 OBJS=$(patsubst %.c,%.o,$(wildcard src/*/*.c))
 
 
-.PHONY: all clean mkfs
+.PHONY: all clean fuse mkfs fsck
 
 # default rule
-all: mkfs
+all: fuse mkfs fsck
 
-mkfs: bin/mkfs
+fuse: $(FUSE_BIN)
+mkfs: $(MKFS_BIN)
+fsck: $(FSCK_BIN)
 
 clean:
 	rm -rf $(wildcard bin/*) $(wildcard src/*/*.o) $(wildcard src/*/*.dep)
 
 
-bin/mkfs: $(filter src/mkfs/%.o,$(OBJS))
+$(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS))
+	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
+$(MKFS_BIN): $(filter src/mkfs/%.o,$(OBJS))
+	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
+$(FSCK_BIN): $(filter src/fsck/%.o,$(OBJS))
 	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
 
 

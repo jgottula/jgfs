@@ -43,10 +43,11 @@ enum jgfs_fat_entry {
 };
 
 struct jgfs_dir_entry {
-	char      name[24]; // [A-Za-z0-9_.] zero-pad; 23ch max; zero = unused entry
+	char      name[20]; // [A-Za-z0-9_.] zero-pad; 19ch max; zero = unused entry
 	uint32_t  mtime;    // unix time
 	uint16_t  attrib;   // file/dir attributes
-	fat_ent_t begin;    // first cluster of file/dir
+	fat_ent_t begin;    // first cluster of file/dir (0 for empty file)
+	uint32_t  size;     // file size in bytes
 };
 
 enum jgfs_file_attrib {
@@ -56,7 +57,7 @@ enum jgfs_file_attrib {
 struct jgfs_dir_cluster {
 	fat_ent_t me;     // first cluster of this dir
 	fat_ent_t parent; // first cluster of parent dir (for root, me == parent)
-		
+	
 	char reserved[28];
 	
 	struct jgfs_dir_entry entries[0]; // dimension varies by cluster size

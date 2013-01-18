@@ -39,11 +39,16 @@ files:
 - the cluster chain should consist only of 1~FAT_LAST and FAT_EOF
 - check for orphaned clusters (referenced by no other clusters or by files)
 - files must not reference reserved/bad/free sectors at any point in the chain
+  (except FAT_FREE as the first cluster if the file size is zero)
+- file size should be equal to the size of the cluster chain, or below it by
+  less than the size of a cluster
 
 dirs:
-- no loops
+- check that the parent cluster is 0 or a normal cluster, and that it includes
+  one dirent for this directory
+- check for a -> b -> a directory loops
+- check for duplicate dirents
 - validate dirents
-- check parent validity
 
 links:
 - check for broken symlinks (?)

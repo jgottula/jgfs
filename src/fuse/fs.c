@@ -57,7 +57,7 @@ void write_sector(uint16_t sect, const void *data) {
 	}
 }
 
-int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
+int lookup_path(const char *path, struct jgfs_dir_entry *dir_ent) {
 	struct jgfs_dir_cluster dir_cluster;
 	char *path_part;
 	
@@ -79,7 +79,7 @@ int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
 		}
 		
 		/* is this the right error code? */
-		warnx("lookup_file: entry not found!");
+		warnx("lookup_path: entry not found!");
 		return -ENOENT;
 		
 	success:
@@ -91,7 +91,7 @@ int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
 
 int jgfs_getattr(const char *path, struct stat *buf) {
 	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_file(path, &dir_ent);
+	int rtn = lookup_path(path, &dir_ent);
 	
 	if (rtn != 0) {
 		return rtn;
@@ -117,7 +117,7 @@ int jgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi) {
 	struct jgfs_dir_cluster dir_cluster;
 	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_file(path, &dir_ent);
+	int rtn = lookup_path(path, &dir_ent);
 	
 	if (rtn != 0) {
 		return rtn;

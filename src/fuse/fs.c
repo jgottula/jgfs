@@ -107,7 +107,7 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 	if (dir_ent.attrib & FILE_DIR) {
 		buf->st_mode = 0755 | S_IFDIR;
 	} else {
-		buf->st_mode = 0644;
+		buf->st_mode = 0644 | S_IFREG;
 	}
 	
 	return 0;

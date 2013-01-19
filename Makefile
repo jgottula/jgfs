@@ -4,9 +4,12 @@
 # simplified BSD license. See the LICENSE file for details.
 
 CC:=x86_64-unknown-linux-gnu-gcc-4.8.0
-CFLAGS:=-std=gnu11 -Og -ggdb -Wall -Wextra -flto
+CFLAGS:=-std=gnu11 -Og -ggdb -flto -Wall -Wextra -Wno-unused-parameter
 LDFLAGS:=
-LIBS:=
+
+FUSE_LIBS:=-lfuse
+MKFS_LIBS:=
+FSCK_LIBS:=
 
 FUSE_BIN:=bin/jgfs
 MKFS_BIN:=bin/mkjgfs
@@ -30,11 +33,11 @@ clean:
 
 
 $(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS))
-	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(FUSE_LIBS) -o $@ $^
 $(MKFS_BIN): $(filter src/mkfs/%.o,$(OBJS))
-	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(MKFS_LIBS) -o $@ $^
 $(FSCK_BIN): $(filter src/fsck/%.o,$(OBJS))
-	$(CC) $(CFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(FSCK_LIBS) -o $@ $^
 
 
 %.o: %.c Makefile

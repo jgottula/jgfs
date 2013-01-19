@@ -12,50 +12,147 @@
 #include "../common/version.h"
 
 
-int dev_fd = -1;
+#define SZ_TOTAL 2880
+#define SZ_RSVD  8
+#define SZ_FAT   12
+
+#define SZ_NDATA (SZ_RSVD + SZ_FAT)
+#define SZ_DATA  (SZ_TOTAL - SZ_NDATA)
+
+
+int dev_fd     = -1;
 off_t dev_size = 0;
+
+struct jgfs_header      hdr;
+struct jgfs_fat_sector *fat;
+struct jgfs_dir_cluster root_dir;
 
 
 void clean_up(void) {
 	close(dev_fd);
 }
 
-void do_header(void) {
-	struct jgfs_header hdr;
+void write_sector(uint16_t sect, const void *data) {
+	ssize_t b_written;
 	
-	memcpy(hdr.magic, "JGFS", 4);
-	hdr.version = JGFS_VERSION;
+	lseek(dev_fd, sect * 0x200, SEEK_SET);
 	
-	memset(hdr.label, '\0', sizeof(hdr.label));
-	strcpy(hdr.label, "mkjgfs");
-	memset(hdr.uuid, 0, sizeof(hdr.uuid));
-	
-	hdr.sz_c = 0;
-	hdr.nr_s = 3360;
-	
-	hdr.sz_fat = 14;
-	
-	hdr.fl_dirty = 0;
-	
-	memset(hdr.reserved, 0, sizeof(hdr.reserved));
-	
-	
-	warnx("writing header");
-	
-	lseek(dev_fd, 0x0e00, SEEK_SET);
-	ssize_t written;
-	switch ((written = write(dev_fd, &hdr, sizeof(hdr)))) {
+	switch ((b_written = write(dev_fd, data, 512))) {
 	case -1:
-		err(1, "write failed");
-	case sizeof(hdr):
+		err(1, "write_sector #%" PRIu16 " failed", sect);
+	case 512:
 		break;
 	default:
-		errx(1, "incomplete write: %zd/512 bytes", written);
+		errx(1, "write_sector #%" PRIu16 " incomplete: %zd/512 bytes",
+			sect, b_written);
 	}
 }
 
+void do_header(void) {
+	memcpy(hdr.magic, "JGFS", 4);
+	hdr.ver_major = JGFS_VER_MAJOR;
+	hdr.ver_minor = JGFS_VER_MINOR;
+	
+	hdr.sz_total  = SZ_TOTAL;
+	hdr.sz_rsvd   = SZ_RSVD;
+	hdr.sz_fat    = SZ_FAT;
+	
+	memset(hdr.reserved, 0, sizeof(hdr.reserved));
+	
+	warnx("writing header");
+	write_sector(1, &hdr);
+}
+
+void do_fat(void) {
+	fat = malloc(SZ_FAT * sizeof(struct jgfs_fat_sector));
+	
+	memset(fat, FAT_OOB, SZ_FAT * sizeof(struct jgfs_fat_sector));
+	
+	/* root directory cluster */
+	fat[0].entries[0] = FAT_EOF;
+	
+	for (uint16_t s = 1; s < SZ_DATA; ++s) {
+		uint16_t fat_sect = s / 256;
+		uint16_t fat_idx  = s % 256;
+		
+		fat[fat_sect].entries[fat_idx] = FAT_FREE;
+	}
+	
+	for (uint16_t i = 0; i < SZ_FAT; ++i) {
+		warnx("writing fat sector #%" PRIu16, i);
+		write_sector(SZ_RSVD + i, fat + i);
+	}
+}
+
+void do_root_dir(void) {
+	root_dir.me     = 0;
+	root_dir.parent = 0;
+	
+	memset(root_dir.reserved, 0, sizeof(root_dir.reserved));
+	memset(root_dir.entries, 0, sizeof(root_dir.entries));
+	
+	strcpy(root_dir.entries[0].name, "dir");
+	root_dir.entries[0].attrib = FILE_DIR;
+	root_dir.entries[0].begin = 1;
+	root_dir.entries[0].size = 512;
+	
+	strcpy(root_dir.entries[1].name, "file1");
+	root_dir.entries[1].begin = 2;
+	root_dir.entries[1].size = 42;
+	
+	warnx("writing root directory");
+	write_sector(SZ_NDATA, &root_dir);
+	
+	
+	struct jgfs_dir_cluster sub_dir;
+	
+	sub_dir.me     = 1;
+	sub_dir.parent = 0;
+	
+	memset(sub_dir.reserved, 0, sizeof(sub_dir.reserved));
+	memset(sub_dir.entries, 0, sizeof(sub_dir.entries));
+	
+	strcpy(sub_dir.entries[1].name, "file2");
+	sub_dir.entries[1].begin = 3;
+	sub_dir.entries[1].size = 1024;
+	
+	warnx("writing second directory cluster");
+	write_sector(SZ_NDATA + 1, &sub_dir);
+	
+	
+	uint8_t buffer[512];
+	
+	memset(buffer, 0, sizeof(buffer));
+	strcpy((char *)buffer, "*************\nthis is file1\n*************\n");
+	
+	warnx("writing file1 data");
+	write_sector(SZ_NDATA + 2, buffer);
+	
+	
+	memset(buffer, 0x03, sizeof(buffer));
+	
+	warnx("writing file2 data [1/2]");
+	write_sector(SZ_NDATA + 3, buffer);
+	
+	
+	memset(buffer, 0x04, sizeof(buffer));
+	
+	warnx("writing file2 data [2/2]");
+	write_sector(SZ_NDATA + 4, buffer);
+	
+	
+	/* rewrite the first fat sector so these clusters show up as used */
+	fat[0].entries[1] = FAT_EOF; // dir
+	fat[0].entries[2] = FAT_EOF; // file1
+	fat[0].entries[3] = 4;       // file2
+	fat[0].entries[4] = FAT_EOF; // file2
+	
+	warnx("rewriting sector #0 of the fat");
+	write_sector(SZ_RSVD, fat);
+}
+
 int main(int argc, char **argv) {
-	warnx("version %s", jgfs_version);
+	warnx("version 0x%02x%02x", JGFS_VER_MAJOR, JGFS_VER_MINOR);
 	
 	if (argc != 2) {
 		errx(1, "expected one argument");
@@ -66,7 +163,7 @@ int main(int argc, char **argv) {
 	if ((dev_fd = open(argv[1], O_RDWR)) == -1) {
 		err(1, "failed to open %s", argv[1]);
 	}
-	atexit(&clean_up);
+	atexit(clean_up);
 	
 	dev_size = lseek(dev_fd, 0, SEEK_END);
 	lseek(dev_fd, 0, SEEK_SET);
@@ -78,6 +175,8 @@ int main(int argc, char **argv) {
 	}
 	
 	do_header();
+	do_fat();
+	do_root_dir();
 	
 	//if (syncfs())
 		// warn() on failed sync

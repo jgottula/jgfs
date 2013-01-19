@@ -2,24 +2,18 @@
 #define JGFS_COMMON_JGFS_H
 
 
-/* this header must be located at sector 7 (offset 0x0e00~0x1000) */
+/* this header must be located at sector 1 (offset 0x200~0x400) */
 struct jgfs_header {
 	char     magic[4];  // must be "JGFS"
-	uint16_t version;   // msb is major, lsb is minor
+	uint8_t  ver_major; // major version
+	uint8_t  ver_minor; // minor version
 	
-	char     label[32]; // zero-padded (first byte zero for no label)
-	                    //  max label length is 31 characters
-	char     uuid[16];  // randomly assigned version 4 uuid
+	uint16_t sz_total;  // total number of sectors
 	
-	uint16_t sz_c;      // cluster size, power-of-two
-	uint16_t nr_s;      // total number of sectors
-	
+	uint16_t sz_rsvd;   // sectors reserved for vbr + header + boot area
 	uint16_t sz_fat;    // sectors reserved for the fat
 	
-	uint16_t fl_dirty;  // dirty unmount flag
-	
-	
-	char     reserved[0x1c2];
+	char     reserved[0x1f4];
 };
 
 typedef uint16_t fat_ent_t;
@@ -55,12 +49,12 @@ enum jgfs_file_attrib {
 };
 
 struct jgfs_dir_cluster {
-	fat_ent_t me;     // first cluster of this dir
-	fat_ent_t parent; // first cluster of parent dir (for root, me == parent)
+	fat_ent_t me;         // first cluster of this dir
+	fat_ent_t parent;     // first cluster of parent dir
 	
-	char reserved[28];
+	char      reserved[28];
 	
-	struct jgfs_dir_entry entries[0]; // dimension varies by cluster size
+	struct jgfs_dir_entry entries[15];
 };
 
 

@@ -9,6 +9,7 @@
 #define JGFS_VERSION     0x0000
 
 
+const char jgfs_version[] = strify_ver(JGFS_VERSION);
 const char *argp_program_version = "jgfs " strify_ver(JGFS_VERSION);
 
 

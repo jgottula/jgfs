@@ -97,7 +97,6 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 		return rtn;
 	}
 	
-	buf->st_mode = 0777;
 	buf->st_nlink = 1;
 	buf->st_uid = 0;
 	buf->st_gid = 0;
@@ -106,7 +105,9 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 	buf->st_atime = buf->st_ctime = buf->st_mtime = time(NULL);
 	
 	if (dir_ent.attrib & FILE_DIR) {
-		buf->st_mode |= S_IFDIR;
+		buf->st_mode = 0755 | S_IFDIR;
+	} else {
+		buf->st_mode = 0644;
 	}
 	
 	return 0;

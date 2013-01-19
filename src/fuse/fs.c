@@ -64,7 +64,7 @@ int lookup_path(const char *path, struct jgfs_dir_entry *dir_ent) {
 	/* the root directory doesn't have an actual entry */
 	memset(dir_ent, 0, sizeof(*dir_ent));
 	dir_ent->size   = 512;
-	dir_ent->attrib = FILE_DIR;
+	dir_ent->attrib = ATTR_DIR;
 	
 	path_part = strtok((char *)path, "/");
 	while (path_part != NULL) {
@@ -104,10 +104,38 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 	buf->st_blocks = GET_BLOCKS(dir_ent.size);
 	buf->st_atime = buf->st_ctime = buf->st_mtime = time(NULL);
 	
-	if (dir_ent.attrib & FILE_DIR) {
-		buf->st_mode = 0755 | S_IFDIR;
-	} else {
+	if (dir_ent.attrib & ATTR_FILE) {
 		buf->st_mode = 0644 | S_IFREG;
+	} else if (dir_ent.attrib & ATTR_DIR) {
+		buf->st_mode = 0755 | S_IFDIR;
+	} else if (dir_ent.attrib & ATTR_SYMLINK) {
+		buf->st_mode = 0777 | S_IFLNK;
+	} else {
+		errx(1, "jgfs_getattr: unknown attrib 0x%x", dir_ent.attrib);
+	}
+	
+	return 0;
+}
+
+int jgfs_readlink(const char *path, char *link, size_t size) {
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	
+	if (rtn != 0) {
+		return rtn;
+	} else if (dir_ent.attrib != ATTR_SYMLINK) {
+		errx(1, "jgfs_readlink: wrong attrib 0x%x", dir_ent.attrib);
+	}
+	
+	uint8_t buffer[512];
+	read_sector(CLUSTER(dir_ent.begin), buffer);
+	
+	memset(link, 0, size);
+	
+	if (dir_ent.size >= size) {
+		memcpy(link, buffer, size - 1);
+	} else {
+		memcpy(link, buffer, dir_ent.size);
 	}
 	
 	return 0;
@@ -123,7 +151,7 @@ int jgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		return rtn;
 	}
 	
-	if (!(dir_ent.attrib & FILE_DIR)) {
+	if (!(dir_ent.attrib & ATTR_DIR)) {
 		warnx("jgfs_readdir: not a directory!");
 		return -ENOTDIR;
 	}

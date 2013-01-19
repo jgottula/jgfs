@@ -92,13 +92,19 @@ void do_root_dir(void) {
 	memset(root_dir.entries, 0, sizeof(root_dir.entries));
 	
 	strcpy(root_dir.entries[0].name, "dir");
-	root_dir.entries[0].attrib = FILE_DIR;
-	root_dir.entries[0].begin = 1;
-	root_dir.entries[0].size = 512;
+	root_dir.entries[0].attrib = ATTR_DIR;
+	root_dir.entries[0].begin  = 1;
+	root_dir.entries[0].size   = 512;
 	
 	strcpy(root_dir.entries[1].name, "file1");
+	root_dir.entries[1].attrib = ATTR_FILE;
 	root_dir.entries[1].begin = 2;
-	root_dir.entries[1].size = 42;
+	root_dir.entries[1].size  = 42;
+	
+	strcpy(root_dir.entries[2].name, "link_to_file2");
+	root_dir.entries[2].attrib = ATTR_SYMLINK;
+	root_dir.entries[2].begin  = 3;
+	root_dir.entries[2].size   = 9;
 	
 	warnx("writing root directory");
 	write_sector(SZ_NDATA, &root_dir);
@@ -112,9 +118,10 @@ void do_root_dir(void) {
 	memset(sub_dir.reserved, 0, sizeof(sub_dir.reserved));
 	memset(sub_dir.entries, 0, sizeof(sub_dir.entries));
 	
-	strcpy(sub_dir.entries[1].name, "file2");
-	sub_dir.entries[1].begin = 3;
-	sub_dir.entries[1].size = 1024;
+	strcpy(sub_dir.entries[0].name, "file2");
+	sub_dir.entries[0].attrib = ATTR_FILE;
+	sub_dir.entries[0].begin = 4;
+	sub_dir.entries[0].size = 1024;
 	
 	warnx("writing second directory cluster");
 	write_sector(SZ_NDATA + 1, &sub_dir);
@@ -129,23 +136,31 @@ void do_root_dir(void) {
 	write_sector(SZ_NDATA + 2, buffer);
 	
 	
-	memset(buffer, 0x03, sizeof(buffer));
+	memset(buffer, 0, sizeof(buffer));
+	strcpy((char *)buffer, "dir/file2");
 	
-	warnx("writing file2 data [1/2]");
+	warnx("writing link_to_file2 path");
 	write_sector(SZ_NDATA + 3, buffer);
 	
 	
 	memset(buffer, 0x04, sizeof(buffer));
 	
-	warnx("writing file2 data [2/2]");
+	warnx("writing file2 data [1/2]");
 	write_sector(SZ_NDATA + 4, buffer);
+	
+	
+	memset(buffer, 0x05, sizeof(buffer));
+	
+	warnx("writing file2 data [2/2]");
+	write_sector(SZ_NDATA + 5, buffer);
 	
 	
 	/* rewrite the first fat sector so these clusters show up as used */
 	fat[0].entries[1] = FAT_EOF; // dir
 	fat[0].entries[2] = FAT_EOF; // file1
-	fat[0].entries[3] = 4;       // file2
-	fat[0].entries[4] = FAT_EOF; // file2
+	fat[0].entries[3] = FAT_EOF; // link_to_file2
+	fat[0].entries[4] = 5;       // file2
+	fat[0].entries[5] = FAT_EOF; // file2
 	
 	warnx("rewriting sector #0 of the fat");
 	write_sector(SZ_RSVD, fat);

@@ -45,7 +45,9 @@ struct jgfs_dir_entry {
 };
 
 enum jgfs_file_attrib {
-	FILE_DIR = (1 << 0), // is a directory
+	ATTR_FILE    = (1 << 0), // regular file
+	ATTR_DIR     = (1 << 1), // directory
+	ATTR_SYMLINK = (1 << 2), // symlink
 };
 
 struct jgfs_dir_cluster {

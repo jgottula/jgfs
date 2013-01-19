@@ -11,10 +11,11 @@ char *dev_path;
 
 
 static struct fuse_operations jgfs_oper = {
-	.getattr = jgfs_getattr,
-	.readdir = jgfs_readdir,
-	.init    = jgfs_init,
-	.destroy = jgfs_destroy,
+	.getattr  = jgfs_getattr,
+	.readlink = jgfs_readlink,
+	.readdir  = jgfs_readdir,
+	.init     = jgfs_init,
+	.destroy  = jgfs_destroy,
 };
 
 

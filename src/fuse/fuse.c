@@ -19,8 +19,6 @@ static struct fuse_operations jgfs_oper = {
 
 
 int main(int argc, char **argv) {
-	int real_argc = 4;
-	char **real_argv;
 	
 	warnx("version 0x%02x%02x", JGFS_VER_MAJOR, JGFS_VER_MINOR);
 	
@@ -31,7 +29,8 @@ int main(int argc, char **argv) {
 	dev_path = argv[1];
 	
 	/* fuse's command processing is inflexible and useless */
-	real_argv    = malloc(4 * sizeof(char *));
+	int real_argc = 4;
+	char **real_argv = malloc(real_argc * sizeof(char *));
 	real_argv[0] = argv[0];
 	real_argv[1] = strdup("-s");
 	real_argv[2] = strdup("-d");

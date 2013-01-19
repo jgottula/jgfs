@@ -62,8 +62,6 @@ int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
 	struct jgfs_dir_cluster dir_cluster;
 	char *path_part;
 	
-	printf("lookup_file %s\n", path);
-	
 	/* the root directory doesn't have an actual entry */
 	memset(&root_dir_ent, 0, sizeof(root_dir_ent));
 	root_dir_ent.size   = 512;
@@ -76,8 +74,12 @@ int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
 		read_sector(CLUSTER(dir_ent->begin), &dir_cluster);
 		
 		if (strcmp(path_part, ".") == 0) {
+			warnx("lookup_file: handling '.'");
+			
 			goto success;
 		} else if (strcmp(path_part, "..") == 0) {
+			warnx("lookup_file: handling '..'");
+			
 			/* stop at the root dir */
 			if (dir_cluster.parent == 0) {
 				*dir_ent = root_dir_ent;
@@ -100,17 +102,13 @@ int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
 				}
 			}
 			
-			/* this really should not happen */
+			/* this means the filesystem is inconsistent */
 			errx(1, "lookup_file: catastrophic failure in '..'");
 		}
 		
 		for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
 			this_ent < dir_cluster.entries + 15; ++this_ent) {
 			if (strcmp(this_ent->name, path_part) == 0) {
-				// if this is a file and not the last component,
-				// then this is an invalid path
-				// (need to handle this!)
-				
 				*dir_ent = *this_ent;
 				goto success;
 			}

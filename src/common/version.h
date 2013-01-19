@@ -7,7 +7,7 @@
 
 
 #define JGFS_VER_MAJOR 0x01
-#define JGFS_VER_MINOR 0x01
+#define JGFS_VER_MINOR 0x02
 
 
 /*const char jgfs_version[] = strify_ver(JGFS_VERSION);

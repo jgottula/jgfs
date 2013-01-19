@@ -3,8 +3,8 @@
 # The source code of this project is distributed under the terms of the
 # simplified BSD license. See the LICENSE file for details.
 
-CC:=gcc
-CFLAGS:=-std=gnu11 -O2 -g -Wall -Wextra -flto
+CC:=x86_64-unknown-linux-gnu-gcc-4.8.0
+CFLAGS:=-std=gnu11 -Og -ggdb -Wall -Wextra -flto
 LDFLAGS:=
 LIBS:=
 

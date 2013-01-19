@@ -58,53 +58,17 @@ void write_sector(uint16_t sect, const void *data) {
 }
 
 int lookup_file(const char *path, struct jgfs_dir_entry *dir_ent) {
-	struct jgfs_dir_entry root_dir_ent;
 	struct jgfs_dir_cluster dir_cluster;
 	char *path_part;
 	
 	/* the root directory doesn't have an actual entry */
-	memset(&root_dir_ent, 0, sizeof(root_dir_ent));
-	root_dir_ent.size   = 512;
-	root_dir_ent.attrib = FILE_DIR;
-	
-	*dir_ent = root_dir_ent;
+	memset(dir_ent, 0, sizeof(*dir_ent));
+	dir_ent->size   = 512;
+	dir_ent->attrib = FILE_DIR;
 	
 	path_part = strtok((char *)path, "/");
 	while (path_part != NULL) {
 		read_sector(CLUSTER(dir_ent->begin), &dir_cluster);
-		
-		if (strcmp(path_part, ".") == 0) {
-			warnx("lookup_file: handling '.'");
-			
-			goto success;
-		} else if (strcmp(path_part, "..") == 0) {
-			warnx("lookup_file: handling '..'");
-			
-			/* stop at the root dir */
-			if (dir_cluster.parent == 0) {
-				*dir_ent = root_dir_ent;
-				goto success;
-			}
-			
-			/* because the metadata for a given directory is located in its
-			 * parent's cluster, we must go up two steps and then back down one
-			 * to find the right directory entry */
-			read_sector(CLUSTER(dir_cluster.parent), &dir_cluster);
-			fat_ent_t target = dir_cluster.me;
-			read_sector(CLUSTER(dir_cluster.parent), &dir_cluster);
-			
-			for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
-				this_ent < dir_cluster.entries + 15; ++this_ent) {
-				if ((this_ent->attrib & FILE_DIR) &&
-					this_ent->begin == target) {
-					*dir_ent = *this_ent;
-					goto success;
-				}
-			}
-			
-			/* this means the filesystem is inconsistent */
-			errx(1, "lookup_file: catastrophic failure in '..'");
-		}
 		
 		for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
 			this_ent < dir_cluster.entries + 15; ++this_ent) {

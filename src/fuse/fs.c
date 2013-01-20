@@ -17,6 +17,18 @@
 #define GET_BLOCKS(x) (((x - 1) / 512) + 1)
 
 
+struct fuse_operations jgfs_oper = {
+	.getattr  = jgfs_getattr,
+	.unlink   = jgfs_unlink,
+	.rmdir    = jgfs_rmdir,
+	.readlink = jgfs_readlink,
+	.open     = jgfs_open,
+	.read     = jgfs_read,
+	.readdir  = jgfs_readdir,
+	.init     = jgfs_init,
+	.destroy  = jgfs_destroy,
+};
+
 extern char *dev_path;
 int dev_fd = -1;
 
@@ -34,6 +46,7 @@ void read_sector(uint16_t sect, void *data) {
 	case -1:
 		err(1, "read_sector #%" PRIu16 " failed", sect);
 	case 512:
+		warnx("read_sector #%" PRIu16, sect);
 		break;
 	default:
 		errx(1, "read_sector #%" PRIu16 " incomplete: %zd/512 bytes",
@@ -50,6 +63,7 @@ void write_sector(uint16_t sect, const void *data) {
 	case -1:
 		err(1, "write_sector #%" PRIu16 " failed", sect);
 	case 512:
+		warnx("write_sector #%" PRIu16, sect);
 		break;
 	default:
 		errx(1, "write_sector #%" PRIu16 " incomplete: %zd/512 bytes",
@@ -60,21 +74,37 @@ void write_sector(uint16_t sect, const void *data) {
 fat_ent_t read_fat(fat_ent_t addr) {
 	struct jgfs_fat_sector fat_sector;
 	
+	warnx("read_fat 0x%04x", addr);
+	
 	read_sector(hdr.sz_rsvd + (addr / 256), &fat_sector);
 	
 	return fat_sector.entries[addr % 256];
 }
 
+void write_fat(fat_ent_t addr, fat_ent_t value) {
+	struct jgfs_fat_sector fat_sector;
+	
+	warnx("write_fat 0x%04x: 0x%04X", addr, value);
+	
+	read_sector(hdr.sz_rsvd + (addr / 256), &fat_sector);
+	fat_sector.entries[addr % 256] = value;
+	write_sector(hdr.sz_rsvd + (addr / 256), &fat_sector);
+}
+
 int lookup_path(const char *path, struct jgfs_dir_entry *dir_ent) {
 	struct jgfs_dir_cluster dir_cluster;
-	char *path_part;
+	char *path_dup, *path_part;
+	
+	warnx("lookup_path %s", path);
+	
+	path_dup = strdup(path);
 	
 	/* the root directory doesn't have an actual entry */
 	memset(dir_ent, 0, sizeof(*dir_ent));
 	dir_ent->size   = 512;
 	dir_ent->attrib = ATTR_DIR;
 	
-	path_part = strtok((char *)path, "/");
+	path_part = strtok(path_dup, "/");
 	while (path_part != NULL) {
 		read_sector(CLUSTER(dir_ent->begin), &dir_cluster);
 		
@@ -88,13 +118,28 @@ int lookup_path(const char *path, struct jgfs_dir_entry *dir_ent) {
 		
 		/* is this the right error code? */
 		warnx("lookup_path: entry not found!");
+		free(path_dup);
 		return -ENOENT;
 		
 	success:
 		path_part = strtok(NULL, "/");
 	}
 	
+	free(path_dup);
 	return 0;
+}
+
+int lookup_parent(const char *path, struct jgfs_dir_entry *dir_ent) {
+	char *path_dup = strdup(path);
+	
+	/* terminate the string after the last '/' */
+	strrchr(path_dup, '/')[1] = '\0';
+	
+	int rtn = lookup_path(path_dup, dir_ent);
+	
+	free(path_dup);
+	
+	return rtn;
 }
 
 int jgfs_getattr(const char *path, struct stat *buf) {
@@ -123,6 +168,109 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 	}
 	
 	return 0;
+}
+
+int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
+	
+}
+
+int jgfs_mkdir(const char *path, mode_t mode) {
+	
+}
+
+/* TODO: test for symlinks */
+int jgfs_unlink(const char *path) {
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	/* sanity check */
+	if (dir_ent.attrib == ATTR_DIR) {
+		return -EISDIR;
+	}
+	
+	fat_ent_t data_addr = dir_ent.begin, old_value;
+	
+	do {
+		old_value = read_fat(data_addr);
+		write_fat(data_addr, FAT_FREE);
+		
+		data_addr = old_value;
+	} while (old_value != FAT_EOF);
+	
+	struct jgfs_dir_entry parent_ent;
+	if ((rtn = lookup_parent(path, &parent_ent)) != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster dir_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &dir_cluster);
+	
+	/* delete this file's entry from its parent */
+	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
+		this_ent < dir_cluster.entries + 15; ++this_ent) {
+		if (this_ent->begin == dir_ent.begin) {
+			memset(this_ent, 0, sizeof(*this_ent));
+			break;
+		}
+	}
+	
+	write_sector(CLUSTER(parent_ent.begin), &dir_cluster);
+	
+	return 0;
+}
+
+/* TODO: check this for / */
+int jgfs_rmdir(const char *path) {
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	/* sanity check */
+	if (dir_ent.attrib != ATTR_DIR) {
+		return -ENOTDIR;
+	}
+	
+	struct jgfs_dir_cluster dir_cluster;
+	read_sector(CLUSTER(dir_ent.begin), &dir_cluster);
+	
+	/* ensure directory emptiness */
+	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
+		this_ent < dir_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] != '\0') {
+			return -ENOTEMPTY;
+		}
+	}
+	
+	read_sector(CLUSTER(dir_cluster.parent), &dir_cluster);
+	
+	/* delete this dir's entry from its parent */
+	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
+		this_ent < dir_cluster.entries + 15; ++this_ent) {
+		if (this_ent->begin == dir_ent.begin) {
+			memset(this_ent, 0, sizeof(*this_ent));
+			break;
+		}
+	}
+	
+	write_sector(CLUSTER(dir_cluster.me), &dir_cluster);
+	
+	/* free up this dir's cluster */
+	write_fat(dir_ent.begin, FAT_FREE);
+	
+	return 0;
+}
+
+int jgfs_symlink(const char *path, const char *link) {
+	
+}
+
+int jgfs_rename(const char *path, const char *newpath) {
+	
 }
 
 int jgfs_readlink(const char *path, char *link, size_t size) {

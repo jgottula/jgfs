@@ -123,8 +123,25 @@ void do_root_dir(void) {
 	sub_dir.entries[0].begin = 4;
 	sub_dir.entries[0].size = 1024;
 	
+	strcpy(sub_dir.entries[1].name, "empty_dir");
+	sub_dir.entries[1].attrib = ATTR_DIR;
+	sub_dir.entries[1].begin = 6;
+	sub_dir.entries[1].size = 512;
+	
 	warnx("writing second directory cluster");
 	write_sector(SZ_NDATA + 1, &sub_dir);
+	
+	
+	struct jgfs_dir_cluster empty_dir;
+	
+	empty_dir.me     = 6;
+	empty_dir.parent = 1;
+	
+	memset(empty_dir.reserved, 0, sizeof(empty_dir.reserved));
+	memset(empty_dir.entries, 0, sizeof(empty_dir.entries));
+	
+	warnx("writing third directory cluster");
+	write_sector(SZ_NDATA + 6, &empty_dir);
 	
 	
 	uint8_t buffer[512];
@@ -161,6 +178,7 @@ void do_root_dir(void) {
 	fat[0].entries[3] = FAT_EOF; // link_to_file2
 	fat[0].entries[4] = 5;       // file2
 	fat[0].entries[5] = FAT_EOF; // file2
+	fat[0].entries[6] = FAT_EOF; // empty_dir
 	
 	warnx("rewriting sector #0 of the fat");
 	write_sector(SZ_RSVD, fat);

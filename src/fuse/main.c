@@ -9,16 +9,7 @@
 
 char *dev_path;
 
-
-static struct fuse_operations jgfs_oper = {
-	.getattr  = jgfs_getattr,
-	.readlink = jgfs_readlink,
-	.open     = jgfs_open,
-	.read     = jgfs_read,
-	.readdir  = jgfs_readdir,
-	.init     = jgfs_init,
-	.destroy  = jgfs_destroy,
-};
+extern struct fuse_operations jgfs_oper;
 
 
 int main(int argc, char **argv) {

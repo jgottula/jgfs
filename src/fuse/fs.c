@@ -19,6 +19,7 @@
 
 struct fuse_operations jgfs_oper = {
 	.getattr  = jgfs_getattr,
+	.mknod    = jgfs_mknod,
 	.unlink   = jgfs_unlink,
 	.rmdir    = jgfs_rmdir,
 	.readlink = jgfs_readlink,

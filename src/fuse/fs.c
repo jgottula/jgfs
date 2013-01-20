@@ -24,6 +24,7 @@ struct fuse_operations jgfs_oper = {
 	.readlink = jgfs_readlink,
 	.open     = jgfs_open,
 	.read     = jgfs_read,
+	.statfs   = jgfs_statfs,
 	.readdir  = jgfs_readdir,
 	.init     = jgfs_init,
 	.destroy  = jgfs_destroy,
@@ -358,6 +359,31 @@ int jgfs_read(const char *path, char *buf, size_t size, off_t offset,
 	}
 	
 	return b_read;
+}
+
+int jgfs_statfs(const char *path, struct statvfs *statv) {
+	uint16_t sz_free = 0;
+	
+	for (uint16_t i = 0; i < hdr.sz_fat; ++i) {
+		struct jgfs_fat_sector fat_sector;
+		read_sector(hdr.sz_rsvd + i, &fat_sector);
+		
+		for (uint16_t j = 0; j < 256; ++j) {
+			if (fat_sector.entries[j] == FAT_FREE) {
+				++sz_free;
+			}
+		}
+	}
+	
+	memset(statv, 0, sizeof(*statv));
+	
+	statv->f_bsize = 512;
+	statv->f_blocks = hdr.sz_total;
+	statv->f_bfree = statv->f_bavail = sz_free;
+	
+	statv->f_namemax = 19;
+	
+	return 0;
 }
 
 int jgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,

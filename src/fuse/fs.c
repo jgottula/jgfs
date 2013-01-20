@@ -156,7 +156,7 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 	buf->st_gid = 0;
 	buf->st_size = dir_ent.size;
 	buf->st_blocks = GET_BLOCKS(dir_ent.size);
-	buf->st_atime = buf->st_ctime = buf->st_mtime = time(NULL);
+	buf->st_atime = buf->st_ctime = buf->st_mtime = dir_ent.mtime;
 	
 	if (dir_ent.attrib & ATTR_FILE) {
 		buf->st_mode = 0644 | S_IFREG;

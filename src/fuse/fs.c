@@ -172,7 +172,55 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 }
 
 int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
+	const char *path_file = strrchr(path, '/') + 1;
 	
+	if (strlen(path_file) > 19) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_parent(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_entry *new_ent = NULL;
+	struct jgfs_dir_cluster dir_cluster;
+	read_sector(CLUSTER(dir_ent.begin), &dir_cluster);
+	
+	/* find an empty directory entry, and check for entry with same name */
+	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
+		this_ent < dir_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			new_ent = this_ent;
+		} else if (strcmp(path_file, this_ent->name) == 0) {
+			return -EEXIST;
+		}
+	}
+	
+	/* directory is full */
+	if (new_ent == NULL) {
+		return -ENOSPC;
+	}
+	
+	memset(new_ent, 0, sizeof(*new_ent));
+	strcpy(new_ent->name, path_file);
+	new_ent->mtime = time(NULL);
+	new_ent->size  = 0;
+	new_ent->begin = 0;
+	
+	switch (mode & ~0777) {
+	case 0:
+	case S_IFREG:
+		new_ent->attrib = ATTR_FILE;
+		break;
+	default:
+		return -EPERM;
+	}
+	
+	write_sector(CLUSTER(dir_ent.begin), &dir_cluster);
+	
+	return 0;
 }
 
 int jgfs_mkdir(const char *path, mode_t mode) {

@@ -241,14 +241,17 @@ int jgfs_unlink(const char *path) {
 		return -EISDIR;
 	}
 	
-	fat_ent_t data_addr = dir_ent.begin, old_value;
-	
-	do {
-		old_value = read_fat(data_addr);
-		write_fat(data_addr, FAT_FREE);
+	/* free up the file's clusters */
+	if (dir_ent.size != 0) {
+		fat_ent_t data_addr = dir_ent.begin, old_value;
 		
-		data_addr = old_value;
-	} while (old_value != FAT_EOF);
+		do {
+			old_value = read_fat(data_addr);
+			write_fat(data_addr, FAT_FREE);
+			
+			data_addr = old_value;
+		} while (old_value != FAT_EOF);
+	}
 	
 	struct jgfs_dir_entry parent_ent;
 	if ((rtn = lookup_parent(path, &parent_ent)) != 0) {

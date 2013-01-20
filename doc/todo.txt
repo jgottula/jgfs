@@ -3,3 +3,7 @@ jgfs additions
 - checksum for fs header
 - variable reserved area
 - larger fat
+
+fuse:
+- check all syscalls for proper behavior
+- cover all relevant errno values from the manpage

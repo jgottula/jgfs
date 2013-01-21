@@ -28,15 +28,8 @@
 	(((uint16_t)_maj * 0x100) + (uint16_t)_min)
 
 
-struct sect {
-	uint8_t data[SECT_SIZE];
-};
-
 typedef uint16_t fat_ent_t;
 
-struct jgfs_fat_sect {
-	fat_ent_t entries[JGFS_FENT_PER_S];
-};
 
 enum jgfs_fat_val {
 	FAT_FREE  = 0x0000, // free
@@ -53,16 +46,6 @@ enum jgfs_fat_val {
 	FAT_OOB   = 0xffff, // past end of device
 };
 
-struct  __attribute__((__packed__)) jgfs_dir_ent {
-	char      name[JGFS_NAME_LIMIT + 1]; // [A-Za-z0-9_.] zero padded
-	                                     // empty string means unused entry
-	uint8_t   type;     // type (mutually exclusive)
-	uint8_t   attr;     // attributes (bitmask)
-	uint32_t  mtime;    // unix time
-	uint32_t  size;     // size in bytes
-	fat_ent_t begin;    // first cluster (0 for empty file)
-};
-
 enum jgfs_file_type {
 	TYPE_FILE    = (1 << 0), // regular file
 	TYPE_DIR     = (1 << 1), // directory
@@ -73,6 +56,25 @@ enum jgfs_file_attr {
 	ATTR_NONE = 0,
 	
 	/* ... */
+};
+
+
+struct sect {
+	uint8_t data[SECT_SIZE];
+};
+
+struct jgfs_fat_sect {
+	fat_ent_t entries[JGFS_FENT_PER_S];
+};
+
+struct  __attribute__((__packed__)) jgfs_dir_ent {
+	char      name[JGFS_NAME_LIMIT + 1]; // [A-Za-z0-9_.] zero padded
+	                                     // empty string means unused entry
+	uint8_t   type;     // type (mutually exclusive)
+	uint8_t   attr;     // attributes (bitmask)
+	uint32_t  mtime;    // unix time
+	uint32_t  size;     // size in bytes
+	fat_ent_t begin;    // first cluster (0 for empty file)
 };
 
 struct __attribute__((__packed__)) jgfs_dir_clust {

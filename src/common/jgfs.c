@@ -42,8 +42,8 @@ static void *jgfs_get_clust(fat_ent_t clust_num) {
 }
 
 static fat_ent_t jgfs_fat_read(fat_ent_t addr) {
-	uint16_t fat_sect = addr / JGFS_FAT_ENT_PER_SECT;
-	uint16_t fat_idx  = addr % JGFS_FAT_ENT_PER_SECT;
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
 	
 	if (fat_sect >= hdr->s_fat) {
 		errx(1, "jgfs_fat_read: tried to access past s_fat "
@@ -54,8 +54,8 @@ static fat_ent_t jgfs_fat_read(fat_ent_t addr) {
 }
 
 static void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
-	uint16_t fat_sect = addr / JGFS_FAT_ENT_PER_SECT;
-	uint16_t fat_idx  = addr % JGFS_FAT_ENT_PER_SECT;
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
 	
 	if (fat_sect >= hdr->s_fat) {
 		errx(1, "jgfs_fat_write: tried to access past s_fat "
@@ -131,7 +131,7 @@ static void jgfs_real_init(const char *dev_path,
 	
 	clusters_total = (hdr->s_total - (hdr->s_rsvd + hdr->s_fat)) / hdr->s_per_c;
 	
-	if (hdr->s_fat < CEIL(clusters_total, JGFS_FAT_ENT_PER_SECT)) {
+	if (hdr->s_fat < CEIL(clusters_total, JGFS_FENT_PER_S)) {
 		errx(1, "fat is too small");
 	}
 }
@@ -165,7 +165,7 @@ void jgfs_new(const char *dev_path,
 	do {
 		new_hdr.s_fat = s_fat;
 		s_fat = CEIL(new_hdr.s_total - (new_hdr.s_rsvd + new_hdr.s_fat),
-			JGFS_FAT_ENT_PER_SECT);
+			JGFS_FENT_PER_S);
 	} while (new_hdr.s_fat != s_fat);
 	
 	jgfs_real_init(dev_path, &new_hdr);

@@ -16,7 +16,11 @@
 
 #define JGFS_HDR_SECT 1
 
-#define JGFS_FAT_ENT_PER_SECT (SECT_SIZE / sizeof(fat_ent_t))
+#define JGFS_FENT_PER_S \
+	(SECT_SIZE / sizeof(fat_ent_t))
+
+#define JGFS_DENT_PER_C \
+	((jgfs_clust_size() / sizeof(jgfs_dir_ent)) - 1)
 
 #define JGFS_VER_EXPAND(_maj, _min) \
 	(((uint16_t)_maj * 0x100) + (uint16_t)_min)
@@ -45,7 +49,7 @@ struct __attribute__((__packed__)) jgfs_hdr {
 typedef uint16_t fat_ent_t;
 
 struct jgfs_fat_sect {
-	fat_ent_t entries[JGFS_FAT_ENT_PER_SECT];
+	fat_ent_t entries[JGFS_FENT_PER_S];
 };
 
 enum jgfs_fat_val {

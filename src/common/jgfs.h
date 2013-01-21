@@ -121,20 +121,47 @@ _Static_assert(sizeof(struct jgfs_dir_clust) == 32,
 	"jgfs_dir_clust must be 32 bytes");
 
 
+/* load jgfs from the device at dev_path */
 void jgfs_init(const char *dev_path);
+
+/* make new jgfs on the device at dev_path with the given parameters */
 void jgfs_new(const char *dev_path,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
+
+/* sync and close the filesystem */
 void jgfs_done(void);
+
+/* sync the filesystem to disk */
 void jgfs_sync(void);
+
+/* get the cluster size (in bytes) of the loaded filesystem */
 uint32_t jgfs_clust_size(void);
+
+/* get a pointer to a sector */
 void *jgfs_get_sect(uint32_t sect_num);
+
+/* get a pointer to a cluster */
 void *jgfs_get_clust(fat_ent_t clust_num);
+
+/* read an entry from the fat */
 fat_ent_t jgfs_fat_read(fat_ent_t addr);
+
+/* write an entry to the fat */
 void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
+
+/* get a free cluster address, or return false on failure */
 bool jgfs_find_free_clust(fat_ent_t *dest);
+
+/* count fat entries with the target value (use FAT_FREE for free blocks) */
 uint16_t jgfs_count_fat(fat_ent_t target);
+
+/* find child with child_name in parent, or return false on failure */
 bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child);
+
+/* find dir clust corresponding to the second-to-last path component, plus the
+ * dir ent corresponding to the last component (or NULL for just the parent), or
+ * return false on failure */
 bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 

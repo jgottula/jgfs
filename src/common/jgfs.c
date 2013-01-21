@@ -470,7 +470,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 		return -ENAMETOOLONG;
 	}
 	
-	struct jgfs_dir_ent new_ent;
+	struct jgfs_dir_ent new_ent, *created_ent;
 	memset(&new_ent, 0, sizeof(new_ent));
 	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
 	new_ent.type  = TYPE_SYMLINK;
@@ -479,12 +479,30 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	new_ent.size  = strlen(target);
 	new_ent.begin = FAT_FREE;
 	
-	/* handle this mostly the same way as jgfs_create_dir:
-	 * we must allocate a cluster in the same way;
-	 * we will only ever allocate one cluster
-	 */
+	int rtn;
+	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
+		return rtn;
+	}
 	
-	return -ENOSYS;
+	fat_ent_t dest_addr;
+	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+		/* if we can't allocate a cluster for the symlink, go back and
+		 * delete the directory entry so things are in a consistent state */
+		if ((errno = jgfs_delete_ent(parent, name)) != 0) {
+			err(1, "jgfs_create_symlink: could not undo dir ent creation");
+		}
+		
+		return -ENOSPC;
+	}
+	
+	created_ent->begin = dest_addr;
+	
+	char *symlink_clust = jgfs_get_clust(dest_addr);
+	strlcpy(symlink_clust, target, jgfs_clust_size());
+	
+	jgfs_fat_write(dest_addr, FAT_EOF);
+	
+	return 0;
 }
 
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {

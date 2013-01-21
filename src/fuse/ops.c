@@ -28,7 +28,7 @@ int jg_statfs(const char *path, struct statvfs *statv) {
 	memset(statv, 0, sizeof(*statv));
 	
 	statv->f_bsize = jgfs_clust_size();
-	statv->f_blocks = jgfs.hdr->s_total;
+	statv->f_blocks = jgfs.hdr->s_total / jgfs.hdr->s_per_c;
 	statv->f_bfree = statv->f_bavail = jgfs_count_fat(FAT_FREE);
 	
 	statv->f_namemax = JGFS_NAME_LIMIT;

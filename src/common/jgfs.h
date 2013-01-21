@@ -180,15 +180,21 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr);
 
-/* add new (valid) dir ent to parent; return posix error code on failure */
+/* add new (valid) dir ent to parent and return a pointer to it as created_ent
+ * (if not NULL); return posix error code on failure */
 int jgfs_create_ent(struct jgfs_dir_clust *parent,
-	const struct jgfs_dir_ent *new_ent);
+	const struct jgfs_dir_ent *new_ent, struct jgfs_dir_ent **created_ent);
 
 /* add new file called name to parent; return posix error code on failure */
 int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name);
 
 /* add new dir called name to parent; return posix error code on failure */
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name);
+
+/* add new symlink called name with target to parent; return posix error code on
+ * failure */
+int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
+	const char *target);
 
 /* delete the dir ent with the given name from parent; return posix error code
  * on failure */

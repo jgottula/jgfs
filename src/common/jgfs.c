@@ -359,7 +359,7 @@ next_dir_clust:
 }
 
 int jgfs_create_ent(struct jgfs_dir_clust *parent,
-	const struct jgfs_dir_ent *new_ent) {
+	const struct jgfs_dir_ent *new_ent, struct jgfs_dir_ent **created_ent) {
 	if (strlen(new_ent->name) == 0) {
 		errx(1, "jgfs_create_ent: new_ent->name is empty");
 	}
@@ -399,6 +399,10 @@ next_dir_clust:
 found:
 	memcpy(empty_ent, new_ent, sizeof(*empty_ent));
 	
+	if (created_ent != NULL) {
+		*created_ent = empty_ent;
+	}
+	
 	return 0;
 }
 
@@ -416,23 +420,69 @@ int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 	new_ent.size  = 0;
 	new_ent.begin = FAT_FREE;
 	
-	return jgfs_create_ent(parent, &new_ent);
+	return jgfs_create_ent(parent, &new_ent, NULL);
 }
 
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
-	/* same as jgfs_create_file, except:
-	 * - type is TYPE_DIR
-	 * - we must successfully allocate a new cluster for the child dir
-	 * - new_ent.size will be jgfs_cluster_size()
-	 * - new_ent.begin will have a real value
-	 * - the new directory cluster needs to be initialized
-	 */
+	if (strlen(name) > JGFS_NAME_LIMIT) {
+		return -ENAMETOOLONG;
+	}
 	
-	/* ALSO: don't allocate a new cluster for the parent directory if we can't
-	 * also allocate a cluster for the new child directory;
-	 * 
-	 * to make this possible, try to find two free clusters BEFORE calling
-	 * jgfs_create_ent */
+	struct jgfs_dir_ent new_ent, *created_ent;
+	memset(&new_ent, 0, sizeof(new_ent));
+	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
+	new_ent.type  = TYPE_DIR;
+	new_ent.attr  = ATTR_NONE;
+	new_ent.mtime = time(NULL);
+	new_ent.size  = jgfs_clust_size();
+	new_ent.begin = FAT_FREE;
+	
+	int rtn;
+	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
+		return rtn;
+	}
+	
+	fat_ent_t dest_addr;
+	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+		/* if we can't allocate a cluster for the directory, go back and
+		 * delete the directory entry so things are in a consistent state */
+		if ((errno = jgfs_delete_ent(parent, name)) != 0) {
+			err(1, "jgfs_create_dir: could not undo dir ent creation");
+		}
+		
+		return -ENOSPC;
+	}
+	
+	created_ent->begin = dest_addr;
+	
+	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(dest_addr);
+	jgfs_init_dir_clust(dir_clust, dest_addr, parent->me);
+	
+	jgfs_fat_write(dest_addr, FAT_EOF);
+	
+	return 0;
+}
+
+int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
+	const char *target) {
+	if (strlen(name) > JGFS_NAME_LIMIT ||
+		strlen(target) > jgfs_clust_size() - 1) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_ent new_ent;
+	memset(&new_ent, 0, sizeof(new_ent));
+	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
+	new_ent.type  = TYPE_SYMLINK;
+	new_ent.attr  = ATTR_NONE;
+	new_ent.mtime = time(NULL);
+	new_ent.size  = strlen(target);
+	new_ent.begin = FAT_FREE;
+	
+	/* handle this mostly the same way as jgfs_create_dir:
+	 * we must allocate a cluster in the same way;
+	 * we will only ever allocate one cluster
+	 */
 	
 	return -ENOSYS;
 }

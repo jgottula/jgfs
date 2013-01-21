@@ -2,3 +2,4 @@
 bin/
 src/*/*.dep
 *.o
+test/*.img

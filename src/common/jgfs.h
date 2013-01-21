@@ -10,7 +10,7 @@
 #define SECT_SIZE 0x200
 
 #define JGFS_VER_MAJOR 0x02
-#define JGFS_VER_MINOR 0x00
+#define JGFS_VER_MINOR 0x01
 
 #define JGFS_MAGIC "JGFS"
 
@@ -28,22 +28,6 @@
 
 struct sect {
 	uint8_t data[SECT_SIZE];
-};
-
-/* this header must be located at sector 1 (offset 0x200~0x400) */
-struct __attribute__((__packed__)) jgfs_hdr {
-	char     magic[4];  // must be "JGFS"
-	uint8_t  ver_major; // major version
-	uint8_t  ver_minor; // minor version
-	
-	uint32_t s_total;   // total number of sectors
-	
-	uint16_t s_rsvd;    // sectors reserved for vbr + header + boot area
-	uint16_t s_fat;     // sectors reserved for the fat
-	
-	uint16_t s_per_c;   // sectors per cluster
-	
-	char     reserved[0x1f0];
 };
 
 typedef uint16_t fat_ent_t;
@@ -95,6 +79,24 @@ struct __attribute__((__packed__)) jgfs_dir_clust {
 	char      reserved[28];
 	
 	struct jgfs_dir_ent entries[0];
+};
+
+/* this header must be located at sector 1 (offset 0x200~0x400) */
+struct __attribute__((__packed__)) jgfs_hdr {
+	char     magic[4];  // must be "JGFS"
+	uint8_t  ver_major; // major version
+	uint8_t  ver_minor; // minor version
+	
+	uint32_t s_total;   // total number of sectors
+	
+	uint16_t s_rsvd;    // sectors reserved for vbr + header + boot area
+	uint16_t s_fat;     // sectors reserved for the fat
+	
+	uint16_t s_per_c;   // sectors per cluster
+	
+	struct jgfs_dir_ent root_dir_ent; // root directory entry
+	
+	char     reserved[0x1d0];
 };
 
 

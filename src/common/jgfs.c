@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <time.h>
 #include <unistd.h>
 
 
@@ -136,9 +137,14 @@ void jgfs_new(const char *dev_path,
 			JGFS_FENT_PER_S);
 	} while (new_hdr.s_fat != s_fat);
 	
+	new_hdr.root_dir_ent.type  = TYPE_DIR;
+	new_hdr.root_dir_ent.mtime = time(NULL);
+	new_hdr.root_dir_ent.size  = jgfs_clust_size();
+	new_hdr.root_dir_ent.begin = FAT_ROOT;
+	
 	jgfs_real_init(dev_path, &new_hdr);
 	
-	/* create the root directory */
+	/* initialize the root directory cluster */
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
 	memset(root_dir_clust, 0, jgfs_clust_size());
 	root_dir_clust->me     = FAT_ROOT;

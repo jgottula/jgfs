@@ -287,7 +287,8 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	 * find the child (we always at least find the parent) */
 	while (path_part != NULL &&
 		(path_next = strtok_r(NULL, "/", &strtok_save),
-		!find_child && path_next != NULL)) {
+		find_child || path_next != NULL)) {
+		
 		if (!jgfs_lookup_child(path_part, dir_clust, &dir_ent)) {
 			free(path_dup);
 			return -ENOENT;

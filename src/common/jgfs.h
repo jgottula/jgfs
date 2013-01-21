@@ -207,12 +207,10 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name);
 void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust);
 
 /* reduce the size of a file */
-int jgfs_reduce(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
-	uint32_t new_size);
+int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 
 /* increase the size of a file */
-int jgfs_enlarge(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
-	uint32_t new_size);
+int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 
 
 extern struct jgfs jgfs;

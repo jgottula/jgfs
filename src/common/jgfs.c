@@ -145,7 +145,7 @@ void jgfs_new(const char *dev_path,
 	
 	new_hdr.root_dir_ent.type  = TYPE_DIR;
 	new_hdr.root_dir_ent.mtime = time(NULL);
-	new_hdr.root_dir_ent.size  = jgfs_clust_size();
+	new_hdr.root_dir_ent.size  = SECT_SIZE * s_per_c;
 	new_hdr.root_dir_ent.begin = FAT_ROOT;
 	
 	jgfs_init_real(dev_path, &new_hdr);

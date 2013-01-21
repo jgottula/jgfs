@@ -277,7 +277,7 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	
 	dir_clust = jgfs_get_clust(FAT_ROOT);
 	
-	char *strtok_save;
+	char *strtok_save = NULL;
 	char *path_dup = strdup(path);
 	char *path_part = strtok_r(path_dup, "/", &strtok_save);
 	char *path_next;

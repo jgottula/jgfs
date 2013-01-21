@@ -353,22 +353,10 @@ next_dir_clust:
 	return 0;
 }
 
-int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
-	if (strlen(name) > JGFS_NAME_LIMIT) {
-		return -ENAMETOOLONG;
-	}
-	
-	struct jgfs_dir_ent new_ent;
-	memset(&new_ent, 0, sizeof(new_ent));
-	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
-	new_ent.type  = TYPE_FILE;
-	new_ent.attr  = ATTR_NONE;
-	new_ent.mtime = time(NULL);
-	new_ent.size  = 0;
-	new_ent.begin = FAT_FREE;
-	
+static int jgfs_create_ent(struct jgfs_dir_clust *parent,
+	const struct jgfs_dir_ent *new_ent) {
 	struct jgfs_dir_ent *old_ent;
-	if (jgfs_lookup_child(name, parent, &old_ent) == 0) {
+	if (jgfs_lookup_child(new_ent->name, parent, &old_ent) == 0) {
 		return -EEXIST;
 	}
 	
@@ -392,15 +380,34 @@ next_dir_clust:
 	}
 	
 	/* TODO: on failure to find an empty entry, extend the directory to another
-	 * cluster */
+	 * cluster and increase its size accordingly */
+	/* NOTE: this will require finding the parent's parent so we can increase
+	 * the parent's size, which means we need to specially handle the rootdir */
 	
 	/* TODO: on failure to allocate a new cluster, return -ENOSPC */
 	return -ENOSPC;
 	
 found:
-	memcpy(empty_ent, &new_ent, sizeof(*empty_ent));
+	memcpy(empty_ent, new_ent, sizeof(*empty_ent));
 	
 	return 0;
+}
+
+int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
+	if (strlen(name) > JGFS_NAME_LIMIT) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_ent new_ent;
+	memset(&new_ent, 0, sizeof(new_ent));
+	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
+	new_ent.type  = TYPE_FILE;
+	new_ent.attr  = ATTR_NONE;
+	new_ent.mtime = time(NULL);
+	new_ent.size  = 0;
+	new_ent.begin = FAT_FREE;
+	
+	return jgfs_create_ent(parent, &new_ent);
 }
 
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
@@ -413,7 +420,10 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	 */
 	
 	/* ALSO: don't allocate a new cluster for the parent directory if we can't
-	 * also allocate a cluster for the new child directory */
+	 * also allocate a cluster for the new child directory;
+	 * 
+	 * to make this possible, try to find two free clusters BEFORE calling
+	 * jgfs_create_ent */
 	
 	return -ENOSYS;
 }

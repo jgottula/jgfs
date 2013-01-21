@@ -20,7 +20,7 @@
 	(SECT_SIZE / sizeof(fat_ent_t))
 
 #define JGFS_DENT_PER_C \
-	((jgfs_clust_size() / sizeof(jgfs_dir_ent)) - 1)
+	((jgfs_clust_size() / sizeof(struct jgfs_dir_ent)) - 1)
 
 #define JGFS_VER_EXPAND(_maj, _min) \
 	(((uint16_t)_maj * 0x100) + (uint16_t)_min)

@@ -605,9 +605,14 @@ void *jgfs_init(struct fuse_conn_info *conn) {
 	
 	read_sector(1, &hdr);
 	
+	if (memcmp("JGFS", hdr.magic, 4) != 0) {
+		close(dev_fd);
+		errx(1, "fs magic not found");
+	}
+	
 	if (hdr.ver_major != JGFS_VER_MAJOR || hdr.ver_minor != JGFS_VER_MINOR) {
 		close(dev_fd);
-		errx(1, "fs has wrong version (0x%02x%02x)",
+		errx(1, "wrong fs version (0x%02x%02x)",
 			hdr.ver_major, hdr.ver_minor);
 	}
 	

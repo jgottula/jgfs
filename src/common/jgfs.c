@@ -201,6 +201,9 @@ fat_ent_t jgfs_fat_read(fat_ent_t addr) {
 	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_read: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
+	} else if (addr > clusters_total) {
+		errx(1, "jgfs_fat_read: tried to access past clusters_total "
+			"(fat %#06" PRIx16 ")", addr);
 	}
 	
 	return jgfs.fat[fat_sect].entries[fat_idx];
@@ -212,6 +215,9 @@ void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
 	
 	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_write: tried to access past s_fat "
+			"(fat %#06" PRIx16 ")", addr);
+	} else if (addr > clusters_total) {
+		errx(1, "jgfs_fat_write: tried to access past clusters_total "
 			"(fat %#06" PRIx16 ")", addr);
 	}
 	

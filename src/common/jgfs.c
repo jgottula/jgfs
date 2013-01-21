@@ -247,7 +247,7 @@ uint16_t jgfs_count_fat(fat_ent_t target) {
 
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child) {
-	fat_ent_t dir_clust_addr = parent->me;
+	fat_ent_t parent_addr = parent->me;
 	struct jgfs_dir_clust *parent_n = parent;
 	
 try_again:
@@ -259,8 +259,8 @@ try_again:
 		}
 	}
 	
-	if ((dir_clust_addr = jgfs_fat_read(dir_clust_addr)) != FAT_EOF) {
-		parent_n = jgfs_get_clust(dir_clust_addr);
+	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
+		parent_n = jgfs_get_clust(parent_addr);
 		goto try_again;
 	}
 	
@@ -311,8 +311,12 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 
 int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr) {
-	for (struct jgfs_dir_ent *this_ent = parent->entries;
-		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
+	fat_ent_t parent_addr = parent->me;
+	struct jgfs_dir_clust *parent_n = parent;
+	
+try_again:
+	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
+		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] != '\0') {
 			int rtn;
 			if ((rtn = func(this_ent, user_ptr)) != 0) {
@@ -321,7 +325,10 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 		}
 	}
 	
-	/* TODO: goto next cluster of directory, if present */
+	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
+		parent_n = jgfs_get_clust(parent_addr);
+		goto try_again;
+	}
 	
 	return 0;
 }

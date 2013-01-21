@@ -250,7 +250,7 @@ int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	fat_ent_t parent_addr = parent->me;
 	struct jgfs_dir_clust *parent_n = parent;
 	
-try_again:
+next_dir_clust:
 	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
 		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT) == 0) {
@@ -262,7 +262,7 @@ try_again:
 	/* try the next cluster in the directory, if present */
 	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
 		parent_n = jgfs_get_clust(parent_addr);
-		goto try_again;
+		goto next_dir_clust;
 	}
 	
 	return -ENOENT;
@@ -315,7 +315,7 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	fat_ent_t parent_addr = parent->me;
 	struct jgfs_dir_clust *parent_n = parent;
 	
-try_again:
+next_dir_clust:
 	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
 		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] != '\0') {
@@ -329,7 +329,7 @@ try_again:
 	/* try the next cluster in the directory, if present */
 	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
 		parent_n = jgfs_get_clust(parent_addr);
-		goto try_again;
+		goto next_dir_clust;
 	}
 	
 	return 0;
@@ -358,7 +358,7 @@ int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 	struct jgfs_dir_clust *parent_n = parent;
 	
 	struct jgfs_dir_ent *empty_ent;
-try_again:
+next_dir_clust:
 	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
 		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] == '\0') {
@@ -370,7 +370,7 @@ try_again:
 	/* try the next cluster in the directory, if present */
 	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
 		parent_n = jgfs_get_clust(parent_addr);
-		goto try_again;
+		goto next_dir_clust;
 	}
 	
 	/* TODO: on failure to find an empty entry, extend the directory to another

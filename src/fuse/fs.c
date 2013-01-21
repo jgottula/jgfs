@@ -244,8 +244,9 @@ int jgfs_mkdir(const char *path, mode_t mode) {
 	
 }
 
-/* TODO: test for symlinks */
 int jgfs_unlink(const char *path) {
+	const char *path_last = strrchr(path, '/') + 1;
+	
 	struct jgfs_dir_entry dir_ent;
 	int rtn = lookup_path(path, &dir_ent);
 	if (rtn != 0) {
@@ -280,7 +281,7 @@ int jgfs_unlink(const char *path) {
 	/* delete this file's entry from its parent */
 	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
 		this_ent < dir_cluster.entries + 15; ++this_ent) {
-		if (this_ent->begin == dir_ent.begin) {
+		if (strcmp(path_last, this_ent->name) == 0) {
 			memset(this_ent, 0, sizeof(*this_ent));
 			break;
 		}
@@ -291,8 +292,9 @@ int jgfs_unlink(const char *path) {
 	return 0;
 }
 
-/* TODO: check this for / */
 int jgfs_rmdir(const char *path) {
+	const char *path_last = strrchr(path, '/') + 1;
+	
 	struct jgfs_dir_entry dir_ent;
 	int rtn = lookup_path(path, &dir_ent);
 	if (rtn != 0) {
@@ -320,7 +322,7 @@ int jgfs_rmdir(const char *path) {
 	/* delete this dir's entry from its parent */
 	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
 		this_ent < dir_cluster.entries + 15; ++this_ent) {
-		if (this_ent->begin == dir_ent.begin) {
+		if (strcmp(path_last, this_ent->name) == 0) {
 			memset(this_ent, 0, sizeof(*this_ent));
 			break;
 		}

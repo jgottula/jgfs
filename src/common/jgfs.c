@@ -53,7 +53,7 @@ static void jgfs_clean_up(void) {
 	}
 }
 
-static void jgfs_real_init(const char *dev_path,
+static void jgfs_init_real(const char *dev_path,
 	const struct jgfs_hdr *new_hdr) {
 	warnx("using jgfs version 0x%02x%02x", JGFS_VER_MAJOR, JGFS_VER_MINOR);
 	
@@ -110,7 +110,7 @@ static void jgfs_real_init(const char *dev_path,
 }
 
 void jgfs_init(const char *dev_path) {
-	jgfs_real_init(dev_path, NULL);
+	jgfs_init_real(dev_path, NULL);
 }
 
 void jgfs_new(const char *dev_path,
@@ -142,7 +142,7 @@ void jgfs_new(const char *dev_path,
 	new_hdr.root_dir_ent.size  = jgfs_clust_size();
 	new_hdr.root_dir_ent.begin = FAT_ROOT;
 	
-	jgfs_real_init(dev_path, &new_hdr);
+	jgfs_init_real(dev_path, &new_hdr);
 	
 	/* initialize the root directory cluster */
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);

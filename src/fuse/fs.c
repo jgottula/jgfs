@@ -34,6 +34,7 @@ struct fuse_operations jgfs_oper = {
 	.readdir  = jgfs_readdir,
 	.init     = jgfs_init,
 	.destroy  = jgfs_destroy,
+	.utimens  = jgfs_utimens,
 };
 
 extern char *dev_path;
@@ -697,4 +698,37 @@ void jgfs_destroy(void *userdata) {
 	close(dev_fd);
 	
 	free(fat);
+}
+
+int jgfs_utimens(const char *path, const struct timespec tv[2]) {
+	const char *path_last = strrchr(path, '/') + 1;
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	struct jgfs_dir_entry *dir_ent = NULL;
+	
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (strcmp(path_last, this_ent->name) == 0) {
+			dir_ent = this_ent;
+			break;
+		}
+	}
+	
+	if (dir_ent == NULL) {
+		return -ENOENT;
+	}
+	
+	dir_ent->mtime = tv[1].tv_sec;
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	return 0;
 }

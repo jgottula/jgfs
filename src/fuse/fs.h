@@ -23,6 +23,7 @@ int jgfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi);
 void *jgfs_init(struct fuse_conn_info *conn);
 void jgfs_destroy(void *userdata);
+int jgfs_utimens(const char *path, const struct timespec tv[2]);
 
 
 #endif

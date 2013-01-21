@@ -414,7 +414,8 @@ next_dir_clust:
 	/* TODO: on failure to find an empty entry, extend the directory to another
 	 * cluster and increase its size accordingly */
 	/* NOTE: this will require finding the parent's parent so we can increase
-	 * the parent's size, which means we need to specially handle the rootdir */
+	 * the parent's size */
+	/* NOTE: this means we need to specially handle the root dir */
 	
 	/* TODO: on failure to allocate a new cluster, return -ENOSPC */
 	return -ENOSPC;
@@ -529,22 +530,66 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 }
 
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {
+	struct jgfs_dir_ent *child;
+	int rtn;
+	if ((rtn = jgfs_lookup_child(name, parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	/* check for directory emptiness, if appropriate */
+	if (child->type == TYPE_DIR) {
+		struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
+		if (jgfs_dir_count_ents(dir_clust) != 0) {
+			return -ENOTEMPTY;
+		}
+	}
+	
+	/* deallocate all the clusters associated with the dir ent */
+	if ((rtn = jgfs_reduce(parent, child, 0)) != 0) {
+		return rtn;
+	}
+	
+	/* erase this dir ent from the parent dir cluster */
+	memset(child, 0, sizeof(*child));
+	
+	/* if we erased the last dir ent in a dir cluster, deallocate it */
+	jgfs_condense_dir_clust(parent);
+	
+	return 0;
+}
+
+void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust) {
 	/* TODO:
-	 * - check for existence of child (and scan multi-sector dirs)
-	 * - if child is a dir, check that it is empty
-	 * - reuse common code: truncate the file to zero length
-	 * - clear out the child entry
-	 * - if we have completely cleared out a dir cluster of the parent, we must
-	 *   remove that cluster:
+	 * - check for clusters in this dir that have no entries and delete them
+	 *   - but NOT if it is the only cluster in that directory
 	 *   - set the previous cluster's fat value (or the parent dir_ent's begin
 	 *     value) to what the empty cluster's fat value was (EOF or otherwise)
 	 *   - update all the parent's dir clusters to have 'me' set to the new
 	 *     begin value if it was modified
 	 *   - update the parent dir_ent's size
-	 * 
-	 * none of this needs to be factored out, as this should be the ONLY
-	 * function that actually removes directory entries from dir clusters
 	 */
+	
+	warnx("jgfs_condense_dir_clust: not implemented");
+}
+
+int jgfs_reduce(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
+	uint32_t new_size) {
+	/* TODO: check that new_size < current size */
+	
+	/* we may want to further break down file size changes into block-level and
+	 * sub-block-level changes */
+	
+	/* when reducing to 0 bytes, be sure to handle that specially */
+	
+	return -ENOSYS;
+}
+
+int jgfs_enlarge(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
+	uint32_t new_size) {
+	/* TODO: check that new_size > current size */
+	
+	/* we may want to further break down file size changes into block-level and
+	 * sub-block-level changes */
 	
 	return -ENOSYS;
 }

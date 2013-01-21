@@ -114,6 +114,7 @@ void jgfs_init(const char *dev_path);
 void jgfs_new(const char *dev_path,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
 void jgfs_done(void);
+void jgfs_sync(void);
 uint32_t jgfs_clust_size(void);
 void *jgfs_get_sect(uint32_t sect_num);
 void *jgfs_get_clust(fat_ent_t clust_num);

@@ -20,9 +20,22 @@ struct jgfs_fat_sect *fat  = NULL;
 static uint16_t clusters_total = 0;
 
 
+static void jgfs_msync(void) {
+	if (msync(dev_mem, dev_size, MS_SYNC) == -1) {
+		warn("msync failed");
+	}
+}
+
+static void jgfs_fsync(void) {
+	if (fsync(dev_fd) == -1) {
+		warn("fsync failed");
+	}
+}
+
 static void jgfs_clean_up(void) {
 	if (dev_mem != NULL) {
-		msync(dev_mem, dev_size, MS_SYNC);
+		jgfs_msync();
+		
 		if (munmap(dev_mem, dev_size) == -1) {
 			warn("munmap failed");
 		}
@@ -30,7 +43,11 @@ static void jgfs_clean_up(void) {
 	}
 	
 	if (dev_fd != -1) {
-		close(dev_fd);
+		jgfs_fsync();
+		
+		if (close(dev_fd) == -1) {
+			warn("close failed");
+		}
 		dev_fd = -1;
 	}
 }
@@ -132,6 +149,11 @@ void jgfs_new(const char *dev_path,
 
 void jgfs_done(void) {
 	jgfs_clean_up();
+}
+
+void jgfs_sync(void) {
+	jgfs_msync();
+	jgfs_fsync();
 }
 
 uint32_t jgfs_clust_size(void) {

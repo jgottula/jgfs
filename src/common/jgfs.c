@@ -86,7 +86,7 @@ static void jgfs_init_real(const char *dev_path,
 		memcpy(hdr, new_hdr, sizeof(*hdr));
 	}
 	
-	if (memcmp(JGFS_MAGIC, hdr->magic, sizeof(hdr->magic)) != 0) {
+	if (memcmp(hdr->magic, JGFS_MAGIC, sizeof(hdr->magic)) != 0) {
 		errx(1, "jgfs header not found");
 	}
 	

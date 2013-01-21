@@ -140,7 +140,7 @@ void jgfs_new(const char *dev_path,
 	do {
 		new_hdr.s_fat = s_fat;
 		s_fat = CEIL(new_hdr.s_total - (new_hdr.s_rsvd + new_hdr.s_fat),
-			JGFS_FENT_PER_S);
+			JGFS_FENT_PER_S * new_hdr.s_per_c);
 	} while (new_hdr.s_fat != s_fat);
 	
 	new_hdr.root_dir_ent.type  = TYPE_DIR;

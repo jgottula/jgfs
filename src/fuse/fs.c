@@ -290,10 +290,10 @@ int jgfs_mkdir(const char *path, mode_t mode) {
 	
 	memset(new_ent, 0, sizeof(*new_ent));
 	strcpy(new_ent->name, path_last);
-	new_ent->mtime = time(NULL);
+	new_ent->mtime  = time(NULL);
 	new_ent->attrib = ATTR_DIR;
-	new_ent->size  = 512;
-	new_ent->begin = dest_addr;
+	new_ent->size   = 512;
+	new_ent->begin  = dest_addr;
 	
 	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
 	

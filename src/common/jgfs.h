@@ -119,6 +119,7 @@ void *jgfs_get_sect(uint32_t sect_num);
 void *jgfs_get_clust(fat_ent_t clust_num);
 fat_ent_t jgfs_fat_read(fat_ent_t addr);
 void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
+bool jgfs_find_free_clust(fat_ent_t *dest);
 
 
 extern struct jgfs_hdr      *hdr;

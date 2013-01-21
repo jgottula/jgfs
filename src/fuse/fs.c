@@ -453,8 +453,6 @@ int jgfs_symlink(const char *target, const char *path) {
 	return 0;
 }
 
-/* TODO: fix this for the case where the parent dirs are the same (a rename
- * within a single directory) */
 int jgfs_rename(const char *path, const char *newpath) {
 	const char *path_last = strrchr(path, '/') + 1;
 	const char *newpath_last = strrchr(newpath, '/') + 1;
@@ -477,9 +475,6 @@ int jgfs_rename(const char *path, const char *newpath) {
 	struct jgfs_dir_cluster parent_cluster;
 	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
 	
-	struct jgfs_dir_cluster new_parent_cluster;
-	read_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
-	
 	struct jgfs_dir_entry *old_ent = NULL;
 	
 	/* find the old dir_ent */
@@ -493,6 +488,17 @@ int jgfs_rename(const char *path, const char *newpath) {
 	if (old_ent == NULL) {
 		return -ENOENT;
 	}
+	
+	/* simple rename: src and dest dirs are the same */
+	if (parent_ent.begin == new_parent_ent.begin) {
+		strcpy(old_ent->name, newpath_last);
+		write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+		
+		return 0;
+	}
+	
+	struct jgfs_dir_cluster new_parent_cluster;
+	read_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
 	
 	struct jgfs_dir_entry *new_ent = NULL;
 	

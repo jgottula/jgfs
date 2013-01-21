@@ -13,7 +13,9 @@ struct jgfs_header {
 	uint16_t sz_rsvd;   // sectors reserved for vbr + header + boot area
 	uint16_t sz_fat;    // sectors reserved for the fat
 	
-	char     reserved[0x1f4];
+	uint16_t s_per_c;   // sectors per cluster
+	
+	char     reserved[0x1f2];
 };
 
 typedef uint16_t fat_ent_t;
@@ -23,7 +25,8 @@ struct jgfs_fat_sector {
 };
 
 enum jgfs_fat_entry {
-	FAT_FREE  = 0x0000, // free / root directory
+	FAT_FREE  = 0x0000, // free
+	FAT_ROOT  = 0x0000, // root directory
 	
 	FAT_FIRST = 0x0001, // first normal cluster
 	/* ... */
@@ -56,7 +59,7 @@ struct jgfs_dir_cluster {
 	
 	char      reserved[28];
 	
-	struct jgfs_dir_entry entries[15];
+	struct jgfs_dir_entry entries[0];
 };
 
 
@@ -66,6 +69,8 @@ _Static_assert(sizeof(struct jgfs_fat_sector) == 0x200,
 	"jgfs_fat_sector must be 512 bytes");
 _Static_assert(sizeof(struct jgfs_dir_entry) == 32,
 	"jgfs_dir_entry must be 32 bytes");
+_Static_assert(sizeof(struct jgfs_dir_cluster) == 32,
+	"jgfs_dir_cluster must be 32 bytes");
 
 
 #endif

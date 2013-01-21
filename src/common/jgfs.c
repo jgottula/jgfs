@@ -229,9 +229,9 @@ void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
 	jgfs.fat[fat_sect].entries[fat_idx] = val;
 }
 
-bool jgfs_find_free_clust(fat_ent_t *dest) {
-	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
-		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
+bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest) {
+	for (uint16_t i = start / JGFS_FENT_PER_S; i < jgfs.hdr->s_fat; ++i) {
+		for (uint16_t j = start % JGFS_FENT_PER_S; j < JGFS_FENT_PER_S; ++j) {
 			if (jgfs.fat[i].entries[j] == FAT_FREE) {
 				*dest = (i * JGFS_FENT_PER_S) + j;
 				return true;

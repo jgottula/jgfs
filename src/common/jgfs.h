@@ -126,6 +126,7 @@ void *jgfs_get_clust(fat_ent_t clust_num);
 fat_ent_t jgfs_fat_read(fat_ent_t addr);
 void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
 bool jgfs_find_free_clust(fat_ent_t *dest);
+uint16_t jgfs_count_fat(fat_ent_t target);
 bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child);
 bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,

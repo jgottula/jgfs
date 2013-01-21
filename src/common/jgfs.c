@@ -224,6 +224,20 @@ bool jgfs_find_free_clust(fat_ent_t *dest) {
 	return false;
 }
 
+uint16_t jgfs_count_fat(fat_ent_t target) {
+	uint16_t count = 0;
+	
+	for (uint16_t i = 0; i < hdr->s_fat; ++i) {
+		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
+			if (fat[i].entries[j] == target) {
+				++count;
+			}
+		}
+	}
+	
+	return count;
+}
+
 bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child) {
 	for (struct jgfs_dir_ent *this_ent = parent->entries;

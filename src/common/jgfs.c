@@ -319,8 +319,7 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	return 0;
 }
 
-int jgfs_create_dir_ent(struct jgfs_dir_clust *parent, const char *name,
-	uint8_t type) {
+int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 	if (strlen(name) > JGFS_NAME_LIMIT) {
 		return -ENAMETOOLONG;
 	}
@@ -328,7 +327,7 @@ int jgfs_create_dir_ent(struct jgfs_dir_clust *parent, const char *name,
 	struct jgfs_dir_ent new_ent;
 	memset(&new_ent, 0, sizeof(new_ent));
 	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
-	new_ent.type  = type;
+	new_ent.type  = TYPE_FILE;
 	new_ent.attr  = ATTR_NONE;
 	new_ent.mtime = time(NULL);
 	new_ent.size  = 0;

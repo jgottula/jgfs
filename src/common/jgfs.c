@@ -375,3 +375,24 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	
 	return -ENOSYS;
 }
+
+int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {
+	/* TODO:
+	 * - check for existence of child (and scan multi-sector dirs)
+	 * - if child is a dir, check that it is empty
+	 * - follow the child's fat chain and set all to FAT_FREE
+	 * - clear out the child entry
+	 * - if we have completely cleared out a dir cluster of the parent, we must
+	 *   remove that cluster:
+	 *   - set the previous cluster's fat value (or the parent dir_ent's begin
+	 *     value) to what the empty cluster's fat value was (EOF or otherwise)
+	 *   - update all the parent's dir clusters to have 'me' set to the new
+	 *     begin value if it was modified
+	 *   - update the parent dir_ent's size
+	 * 
+	 * none of this needs to be factored out, as this should be the ONLY
+	 * function that actually removes directory entries from dir clusters
+	 */
+	
+	return -ENOSYS;
+}

@@ -1,9 +1,16 @@
 jgfs additions
 
+fs structure:
 - checksum for fs header
-- variable reserved area
-- larger fat
+- longer filenames
+
+mkfs:
+- configurable reserved area
 
 fuse:
 - check all syscalls for proper behavior
 - cover all relevant errno values from the manpage
+- reduce usage of unexplained constants
+- do better checking of all limits (filename length etc)
+- rewrite to use mmap
+- implement cluster sizes other than 1

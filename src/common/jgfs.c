@@ -294,11 +294,16 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 			return -ENOENT;
 		}
 		
-		if (dir_ent->type != TYPE_DIR) {
-			return -ENOTDIR;
+		/* if we're still getting to the child, make sure we don't try to
+		 * recurse into a non-directory */
+		if (path_next != NULL) {
+			if (dir_ent->type != TYPE_DIR) {
+				return -ENOTDIR;
+			}
+			
+			dir_clust = jgfs_get_clust(dir_ent->begin);
 		}
 		
-		dir_clust = jgfs_get_clust(dir_ent->begin);
 		path_part = path_next;
 	}
 	

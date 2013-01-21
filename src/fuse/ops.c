@@ -206,66 +206,21 @@ int jg_rmdir(const char *path) {
 }
 
 int jg_symlink(const char *target, const char *path) {
-	return -ENOSYS;
-#if 0
-	const char *path_last = strrchr(path, '/') + 1;
-	
-	if (strlen(path_last) > 19 || strlen(target) >= 512) {
-		return -ENAMETOOLONG;
-	}
-	
-	struct jgfs_dir_entry parent_ent;
-	int rtn = lookup_parent(path, &parent_ent);
-	if (rtn != 0) {
+	struct jgfs_dir_clust *parent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
 		return rtn;
 	}
 	
-	struct jgfs_dir_entry *new_ent = NULL;
-	struct jgfs_dir_cluster parent_cluster;
-	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	char *path_last = strrchr(path, '/') + 1;
 	
-	/* find an empty directory entry, and check for entry with same name */
-	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
-		this_ent < parent_cluster.entries + 15; ++this_ent) {
-		if (this_ent->name[0] == '\0') {
-			new_ent = this_ent;
-		} else if (strcmp(path_last, this_ent->name) == 0) {
-			return -EEXIST;
-		}
-	}
-	
-	/* directory is full */
-	if (new_ent == NULL) {
-		return -ENOSPC;
-	}
-	
-	fat_ent_t dest_addr;
-	if (!find_free_cluster(&dest_addr)) {
-		return -ENOSPC;
-	}
-	
-	write_fat(dest_addr, FAT_EOF);
-	
-	uint8_t data_buf[512];
-	memset(data_buf, 0, sizeof(data_buf));
-	strlcpy((char *)data_buf, target, sizeof(data_buf));
-	
-	write_sector(CLUSTER(dest_addr), data_buf);
-	
-	memset(new_ent, 0, sizeof(*new_ent));
-	strcpy(new_ent->name, path_last);
-	new_ent->mtime  = time(NULL);
-	new_ent->attrib = ATTR_SYMLINK;
-	new_ent->size   = strlen(target);
-	new_ent->begin  = dest_addr;
-	
-	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-	
-	return 0;
-#endif
+	return jgfs_create_symlink(parent, path_last, target);
 }
 
 int jg_rename(const char *path, const char *newpath) {
+	/* TODO: be sure to check if the new filename is zero-length; this may be
+	 * done here or in the common/jgfs.c function, if any */
+	
 	return -ENOSYS;
 #if 0
 	const char *path_last = strrchr(path, '/') + 1;

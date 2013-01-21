@@ -150,6 +150,11 @@ void jgfs_new(const char *dev_path,
 	
 	jgfs_init_real(dev_path, &new_hdr);
 	
+	for (uint16_t i = clusters_total;
+		i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
+		jgfs.fat[i / JGFS_FENT_PER_S].entries[i % JGFS_FENT_PER_S] = FAT_OOB;
+	}
+	
 	/* initialize the root directory cluster */
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
 	memset(root_dir_clust, 0, jgfs_clust_size());

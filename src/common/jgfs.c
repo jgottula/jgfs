@@ -360,3 +360,18 @@ found:
 	
 	return 0;
 }
+
+int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
+	/* same as jgfs_create_file, except:
+	 * - type is TYPE_DIR
+	 * - we must successfully allocate a new cluster for the child dir
+	 * - new_ent.size will be jgfs_cluster_size()
+	 * - new_ent.begin will have a real value
+	 * - the new directory cluster needs to be initialized
+	 */
+	
+	/* ALSO: don't allocate a new cluster for the parent directory if we can't
+	 * also allocate a cluster for the new child directory */
+	
+	return -ENOSYS;
+}

@@ -572,24 +572,53 @@ void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust) {
 	warnx("jgfs_condense_dir_clust: not implemented");
 }
 
-int jgfs_reduce(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
-	uint32_t new_size) {
-	/* TODO: check that new_size < current size */
+int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
+	if (new_size >= dir_ent->size) {
+		errx(1, "jgfs_reduce: new_size is not smaller");
+	}
 	
-	/* we may want to further break down file size changes into block-level and
-	 * sub-block-level changes */
+	uint16_t clust_before = CEIL(dir_ent->size, jgfs_clust_size()),
+		clust_after = CEIL(new_size, jgfs_clust_size());
 	
-	/* when reducing to 0 bytes, be sure to handle that specially */
+	if (clust_before != clust_after) {
+		fat_ent_t this = dir_ent->begin, next;
+		
+		for (uint16_t i = 1; i <= clust_before; ++i) {
+			next = jgfs_fat_read(this);
+			
+			if (i == clust_after) {
+				jgfs_fat_write(this, FAT_EOF);
+			} else if (i > clust_after) {
+				jgfs_fat_write(this, FAT_FREE);
+			}
+			
+			/* this means the filesystem is inconsistent */
+			if (next == FAT_EOF && i < clust_before) {
+				warnx("jgfs_reduce: found premature FAT_EOF in clust chain");
+				break;
+			}
+			
+			this = next;
+		}
+		
+		/* special case for zero-size files */
+		if (clust_after == 0) {
+			jgfs_fat_write(dir_ent->begin, FAT_FREE);
+			dir_ent->begin = FAT_NALLOC;
+		}
+	}
 	
-	return -ENOSYS;
+	dir_ent->size = new_size;
+	
+	return 0;
 }
 
-int jgfs_enlarge(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
-	uint32_t new_size) {
-	/* TODO: check that new_size > current size */
+int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
+	if (new_size >= dir_ent->size) {
+		errx(1, "jgfs_enlarge: new_size is not larger");
+	}
 	
-	/* we may want to further break down file size changes into block-level and
-	 * sub-block-level changes */
+	
 	
 	return -ENOSYS;
 }

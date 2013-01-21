@@ -3,19 +3,14 @@
 #include <err.h>
 #include <fuse.h>
 #include <string.h>
-#include "fs.h"
-#include "../common/version.h"
 
 
-char *dev_path;
+extern char *dev_path;
 
-extern struct fuse_operations jgfs_oper;
+extern struct fuse_operations jg_oper;
 
 
 int main(int argc, char **argv) {
-	
-	warnx("version 0x%02x%02x", JGFS_VER_MAJOR, JGFS_VER_MINOR);
-	
 	if (argc != 3) {
 		errx(1, "expected two arguments");
 	}
@@ -30,5 +25,5 @@ int main(int argc, char **argv) {
 	real_argv[2] = strdup("-d");
 	real_argv[3] = argv[2];
 	
-	return fuse_main(real_argc, real_argv, &jgfs_oper, NULL);
+	return fuse_main(real_argc, real_argv, &jg_oper, NULL);
 }

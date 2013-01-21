@@ -1,0 +1,577 @@
+#define _FILE_OFFSET_BITS 64
+#define FUSE_USE_VERSION  26
+#include <bsd/string.h>
+#include <err.h>
+#include <errno.h>
+#include <fuse.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../common/jgfs.h"
+
+
+char *dev_path;
+
+
+void *jg_init(struct fuse_conn_info *conn) {
+	jgfs_init(dev_path);
+	
+	return NULL;
+}
+
+void jg_destroy(void *userdata) {
+	jgfs_done();
+}
+
+int jg_statfs(const char *path, struct statvfs *statv) {
+	memset(statv, 0, sizeof(*statv));
+	
+	statv->f_bsize = jgfs_clust_size();
+	statv->f_blocks = jgfs.hdr->s_total;
+	statv->f_bfree = statv->f_bavail = jgfs_count_fat(FAT_FREE);
+	
+	statv->f_namemax = JGFS_NAME_LIMIT;
+	
+	return 0;
+}
+
+int jg_getattr(const char *path, struct stat *buf) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	buf->st_nlink = 1;
+	buf->st_uid = 0;
+	buf->st_gid = 0;
+	buf->st_size = child->size;
+	buf->st_blocks = CEIL(child->size, jgfs_clust_size());
+	buf->st_atime = buf->st_ctime = buf->st_mtime = child->mtime;
+	
+	if (child->type == TYPE_FILE) {
+		buf->st_mode = 0644 | S_IFREG;
+	} else if (child->type == TYPE_DIR) {
+		buf->st_mode = 0755 | S_IFDIR;
+	} else if (child->type == TYPE_SYMLINK) {
+		buf->st_mode = 0777 | S_IFLNK;
+	} else {
+		errx(1, "jgfs_getattr: unknown type 0x%x", child->type);
+	}
+	
+	return 0;
+}
+
+int jg_utimens(const char *path, const struct timespec tv[2]) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	child->mtime = tv[1].tv_sec;
+	
+	return 0;
+}
+
+int jg_readdir_filler(struct jgfs_dir_ent *dir_ent, void *user_ptr) {
+	void *buf = ((void **)user_ptr)[0];
+	fuse_fill_dir_t filler = ((void **)user_ptr)[1];
+	
+	if (filler(buf, dir_ent->name, NULL, 0) == 1) {
+		return -EINVAL;
+	}
+	
+	return 0;
+}
+
+int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+	off_t offset, struct fuse_file_info *fi) {
+	struct jgfs_dir_clust *parent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
+	}
+	
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
+	
+	void *filler_info[] = {
+		buf,
+		filler,
+	};
+	
+	return jgfs_dir_foreach(jg_readdir_filler, parent, filler_info);
+}
+
+int jg_readlink(const char *path, char *link, size_t size) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	/* TODO */
+	return -ENOSYS;
+	
+#if 0
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	
+	if (rtn != 0) {
+		return rtn;
+	} else if (dir_ent.attrib != ATTR_SYMLINK) {
+		errx(1, "jgfs_readlink: wrong attrib 0x%x", dir_ent.attrib);
+	}
+	
+	uint8_t buffer[512];
+	read_sector(CLUSTER(dir_ent.begin), buffer);
+	
+	memset(link, 0, size);
+	
+	if (dir_ent.size >= size) {
+		memcpy(link, buffer, size - 1);
+	} else {
+		memcpy(link, buffer, dir_ent.size);
+	}
+	
+	return 0;
+#endif
+}
+
+int jg_mknod(const char *path, mode_t mode, dev_t dev) {
+	struct jgfs_dir_clust *parent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
+	}
+	
+	switch (mode & ~0777) {
+	case 0:
+	case S_IFREG:
+		break;
+	default:
+		return -EPERM;
+	}
+	
+	char *path_last = strrchr(path, '/') + 1;
+	
+	return jgfs_create_file(parent, path_last);
+}
+
+int jg_mkdir(const char *path, mode_t mode) {
+	struct jgfs_dir_clust *parent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
+	}
+	
+	char *path_last = strrchr(path, '/') + 1;
+	
+	return jgfs_create_dir(parent, path_last);
+}
+
+int jg_unlink(const char *path) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	if (child->type == TYPE_DIR) {
+		return -EISDIR;
+	}
+	
+	return jgfs_delete_ent(parent, child->name);
+}
+
+int jg_rmdir(const char *path) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	if (child->type != TYPE_DIR) {
+		return -ENOTDIR;
+	}
+	
+	return jgfs_delete_ent(parent, child->name);
+}
+
+int jg_symlink(const char *target, const char *path) {
+	return -ENOSYS;
+#if 0
+	const char *path_last = strrchr(path, '/') + 1;
+	
+	if (strlen(path_last) > 19 || strlen(target) >= 512) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_entry *new_ent = NULL;
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	/* find an empty directory entry, and check for entry with same name */
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			new_ent = this_ent;
+		} else if (strcmp(path_last, this_ent->name) == 0) {
+			return -EEXIST;
+		}
+	}
+	
+	/* directory is full */
+	if (new_ent == NULL) {
+		return -ENOSPC;
+	}
+	
+	fat_ent_t dest_addr;
+	if (!find_free_cluster(&dest_addr)) {
+		return -ENOSPC;
+	}
+	
+	write_fat(dest_addr, FAT_EOF);
+	
+	uint8_t data_buf[512];
+	memset(data_buf, 0, sizeof(data_buf));
+	strlcpy((char *)data_buf, target, sizeof(data_buf));
+	
+	write_sector(CLUSTER(dest_addr), data_buf);
+	
+	memset(new_ent, 0, sizeof(*new_ent));
+	strcpy(new_ent->name, path_last);
+	new_ent->mtime  = time(NULL);
+	new_ent->attrib = ATTR_SYMLINK;
+	new_ent->size   = strlen(target);
+	new_ent->begin  = dest_addr;
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	return 0;
+#endif
+}
+
+int jg_rename(const char *path, const char *newpath) {
+	return -ENOSYS;
+#if 0
+	const char *path_last = strrchr(path, '/') + 1;
+	const char *newpath_last = strrchr(newpath, '/') + 1;
+	
+	if (strlen(newpath_last) > 19) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_entry new_parent_ent;
+	if ((rtn = lookup_parent(newpath, &new_parent_ent)) != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	struct jgfs_dir_entry *old_ent = NULL;
+	
+	/* find the old dir_ent */
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (strcmp(path_last, this_ent->name) == 0) {
+			old_ent = this_ent;
+			break;
+		}
+	}
+	
+	if (old_ent == NULL) {
+		return -ENOENT;
+	}
+	
+	/* simple rename: src and dest dirs are the same */
+	if (parent_ent.begin == new_parent_ent.begin) {
+		strcpy(old_ent->name, newpath_last);
+		write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+		
+		return 0;
+	}
+	
+	struct jgfs_dir_cluster new_parent_cluster;
+	read_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
+	
+	struct jgfs_dir_entry *new_ent = NULL;
+	
+	/* find an empty directory entry, and check for entry with same name */
+	for (struct jgfs_dir_entry *this_ent = new_parent_cluster.entries;
+		this_ent < new_parent_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			new_ent = this_ent;
+		} else if (strcmp(path_last, this_ent->name) == 0) {
+			return -EEXIST;
+		}
+	}
+	
+	if (new_ent == NULL) {
+		return -ENOSPC;
+	}
+	
+	*new_ent = *old_ent;
+	memset(old_ent, 0, sizeof(*old_ent));
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	write_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
+	
+	return 0;
+#endif
+}
+
+int jg_open(const char *path, struct fuse_file_info *fi) {
+	return 0;
+}
+
+int jg_truncate(const char *path, off_t newsize) {
+	return -ENOSYS;
+#if 0
+	const char *path_last = strrchr(path, '/') + 1;
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	struct jgfs_dir_entry *dir_ent = NULL;
+	
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (strcmp(path_last, this_ent->name) == 0) {
+			dir_ent = this_ent;
+			break;
+		}
+	}
+	
+	if (dir_ent == NULL) {
+		return -ENOENT;
+	}
+	
+	bool nospc = false;
+	
+	if (newsize < dir_ent->size) {
+		uint16_t new_count = GET_BLOCKS(newsize), cluster_count = 0;
+		fat_ent_t data_addr = dir_ent->begin, old_value;
+		
+		do {
+			++cluster_count;
+			
+			old_value = read_fat(data_addr);
+			
+			if (cluster_count == new_count) {
+				write_fat(data_addr, FAT_EOF);
+			} else if (cluster_count > new_count) {
+				write_fat(data_addr, FAT_FREE);
+			}
+			
+			data_addr = old_value;
+			++cluster_count;
+		} while (old_value != FAT_EOF);
+		
+		if (newsize == 0) {
+			dir_ent->begin = 0;
+		}
+		
+		dir_ent->size = newsize;
+	} else if (newsize > dir_ent->size) {
+		uint16_t add_count = GETBLOCKS(newsize) - GETBLOCKS(dir_ent->size),
+			cluster_count = 0;
+		
+		/* allocate the first cluster if the file is empty */
+		if (dir_ent->size == 0) {
+			if (!find_free_cluster(&dir_ent->begin)) {
+				nospc = true;
+				goto bail;
+			}
+			
+			write_fat(dir_ent->begin, FAT_EOF);
+			--add_count;
+		}
+		
+		fat_ent_t data_addr = dir_ent->begin, old_value;
+		
+		while ()
+		
+		while (cluster_count < add_count) {
+			old_value = read_fat(data_addr);
+			
+			if ()
+			
+			
+			/* incr cluster_count */
+		}
+		
+		
+		/* TODO: specially handle case where size was zero */
+		
+		/* incrementally increment dir_ent->file_size until space runs out */
+		
+		/* if space runs out, set nospc to true and leave */
+	}
+	
+bail:
+	dir_ent->mtime = time(NULL);
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	return (nospc ? -ENOSPC : 0);
+#endif
+}
+
+int jg_ftruncate(const char *path, off_t newsize, struct fuse_file_info *fi) {
+	return jg_truncate(path, newsize);
+}
+
+int jg_read(const char *path, char *buf, size_t size, off_t offset,
+	struct fuse_file_info *fi) {
+	return -ENOSYS;
+#if 0
+	fat_ent_t data_addr;
+	int b_read = 0;
+	
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	uint32_t file_size = dir_ent.size;
+	
+	memset(buf, 0, size);
+	
+	/* EOF */
+	if (file_size <= offset) {
+		return 0;
+	}
+	
+	/* skip to the first cluster requested */
+	data_addr = dir_ent.begin;
+	while (offset >= 512) {
+		data_addr  = read_fat(data_addr);
+		offset    -= 512;
+		file_size -= 512;
+	}
+	
+	while (size > 0 && file_size > 0) {
+		uint16_t size_this_cluster;
+		
+		if (size < file_size) {
+			size_this_cluster = size;
+		} else {
+			size_this_cluster = file_size;
+		}
+		
+		if (size_this_cluster > (512 - offset)) {
+			size_this_cluster = (512 - offset);
+		}
+		
+		uint8_t data_buf[512];
+		read_sector(CLUSTER(data_addr), data_buf);
+		memcpy(buf, data_buf + offset, size_this_cluster);
+		
+		buf       += size_this_cluster;
+		b_read    += size_this_cluster;
+		
+		size      -= size_this_cluster;
+		file_size -= size_this_cluster;
+		
+		/* next cluster */
+		data_addr = read_fat(data_addr);
+	}
+	
+	return b_read;
+#endif
+}
+
+/* check for cases: (using 2K file)
+ * append 512 @ 2048
+ * overwrite 512 @ 1024
+ * overwrite/append 1024 @ 1536
+ * append 512 @ 3072
+ */
+int jg_write(const char *path, const char *buf, size_t size, off_t offset,
+	struct fuse_file_info *fi) {
+	return -ENOSYS;
+#if 0
+	fat_ent_t data_addr;
+	int b_written = 0;
+	
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	uint32_t file_size = dir_ent.size;
+	
+	/* if offset is greater than file_size, call jgfs_ftruncate first;
+	 * then, make sure and update the dir_ent and file_size! */
+	
+	
+	
+	
+	
+	/* specially handle case where filesize was zero */
+	
+	
+	/* be sure to update mtime with time(NULL), even for 0 bytes or ENOSPC */
+	
+	return b_written;
+#endif
+}
+
+
+struct fuse_operations jg_oper = {
+	.init      = jg_init,
+	.destroy   = jg_destroy,
+	
+	.statfs    = jg_statfs,
+	
+	.getattr   = jg_getattr,
+	.utimens   = jg_utimens,
+	
+	.readdir   = jg_readdir,
+	.readlink  = jg_readlink,
+	
+	.mknod     = jg_mknod,
+	.mkdir     = jg_mkdir,
+	
+	.unlink    = jg_unlink,
+	.rmdir     = jg_rmdir,
+	
+	.symlink   = jg_symlink,
+	.rename    = jg_rename,
+	
+	.open      = jg_open,
+	
+	.ftruncate = jg_ftruncate,
+	.truncate  = jg_truncate,
+	
+	.read      = jg_read,
+};

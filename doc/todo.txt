@@ -13,4 +13,9 @@ fuse:
 - reduce usage of unexplained constants
 - do better checking of all limits (filename length etc)
 - rewrite to use mmap
+  - set up an atexit handler to msync and munmap
+  - also msync/munmap in jgfs_destroy
+  - set pointer(s) to NULL to avoid double-unmapping
 - implement cluster sizes other than 1
+- implement multi-cluster directories
+- abstract directories

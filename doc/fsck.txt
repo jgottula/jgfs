@@ -28,6 +28,7 @@ fat:
 - all inaccessible clusters should be marked FAT_OOB
 - no accessible clusters should be marked FAT_OOB
 - no clusters should contain FAT_ROOT
+- all used clusters should have be referenced by exactly one file
 - no two files should share a cluster in the range 1~FAT_LAST
   - to check this, iterate over all fat entries 1~FAT_LAST and for each one,
     if listed as a normal/EOF cluster, check that only one OTHER cluster in the
@@ -49,9 +50,10 @@ dirs:
 - check for a -> b -> a directory loops
 - check for duplicate dirents
 - validate dirents
+- check for string problems (null-termination) in name fields
 
 links:
-- check for broken symlinks (?)
+- check for size vs. null-terminated string size
 
 device:
 - verify that the fs does not exceed the device bounds

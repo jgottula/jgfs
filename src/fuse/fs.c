@@ -483,6 +483,7 @@ int jgfs_rename(const char *path, const char *newpath) {
 		this_ent < parent_cluster.entries + 15; ++this_ent) {
 		if (strcmp(path_last, this_ent->name) == 0) {
 			old_ent = this_ent;
+			break;
 		}
 	}
 	

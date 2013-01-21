@@ -442,7 +442,7 @@ int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 	new_ent.attr  = ATTR_NONE;
 	new_ent.mtime = time(NULL);
 	new_ent.size  = 0;
-	new_ent.begin = FAT_FREE;
+	new_ent.begin = FAT_NALLOC;
 	
 	return jgfs_create_ent(parent, &new_ent, NULL);
 }
@@ -459,7 +459,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	new_ent.attr  = ATTR_NONE;
 	new_ent.mtime = time(NULL);
 	new_ent.size  = jgfs_clust_size();
-	new_ent.begin = FAT_FREE;
+	new_ent.begin = FAT_NALLOC;
 	
 	int rtn;
 	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
@@ -501,7 +501,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	new_ent.attr  = ATTR_NONE;
 	new_ent.mtime = time(NULL);
 	new_ent.size  = strlen(target);
-	new_ent.begin = FAT_FREE;
+	new_ent.begin = FAT_NALLOC;
 	
 	int rtn;
 	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {

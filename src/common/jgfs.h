@@ -10,7 +10,7 @@
 #define SECT_SIZE 0x200
 
 #define JGFS_VER_MAJOR 0x02
-#define JGFS_VER_MINOR 0x01
+#define JGFS_VER_MINOR 0x02
 
 #define JGFS_MAGIC "JGFS"
 
@@ -32,18 +32,19 @@ typedef uint16_t fat_ent_t;
 
 
 enum jgfs_fat_val {
-	FAT_FREE  = 0x0000, // free
-	FAT_ROOT  = 0x0000, // root directory
+	FAT_FREE   = 0x0000, // free
+	FAT_ROOT   = 0x0000, // root directory
 	
-	FAT_FIRST = 0x0001, // first normal cluster
+	FAT_FIRST  = 0x0001, // first normal cluster
 	/* ... */
-	FAT_LAST  = 0xfffb, // last possible normal cluster
+	FAT_LAST   = 0xfffb, // last possible normal cluster
 	
 	/* special */
-	FAT_EOF   = 0xfffc, // last cluster in file
-	FAT_RSVD  = 0xfffd, // reserved
-	FAT_BAD   = 0xfffe, // damaged
-	FAT_OOB   = 0xffff, // past end of device
+	FAT_EOF    = 0xfffc, // last cluster in file
+	FAT_RSVD   = 0xfffd, // reserved
+	FAT_BAD    = 0xfffe, // damaged
+	FAT_OOB    = 0xffff, // past end of device
+	FAT_NALLOC = 0xffff, // file not allocated
 };
 
 enum jgfs_file_type {
@@ -74,7 +75,7 @@ struct  __attribute__((__packed__)) jgfs_dir_ent {
 	uint8_t   attr;     // attributes (bitmask)
 	uint32_t  mtime;    // unix time
 	uint32_t  size;     // size in bytes
-	fat_ent_t begin;    // first cluster (0 for empty file)
+	fat_ent_t begin;    // first cluster (FAT_NALLOC for empty file)
 };
 
 struct __attribute__((__packed__)) jgfs_dir_clust {

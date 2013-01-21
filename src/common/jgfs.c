@@ -247,15 +247,22 @@ uint16_t jgfs_count_fat(fat_ent_t target) {
 
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child) {
-	for (struct jgfs_dir_ent *this_ent = parent->entries;
-		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
+	fat_ent_t dir_clust_addr = parent->me;
+	struct jgfs_dir_clust *parent_n = parent;
+	
+try_again:
+	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
+		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT) == 0) {
 			*child = this_ent;
 			return 0;
 		}
 	}
 	
-	/* TODO: try next cluster of directory, if present */
+	if ((dir_clust_addr = jgfs_fat_read(dir_clust_addr)) != FAT_EOF) {
+		parent_n = jgfs_get_clust(dir_clust_addr);
+		goto try_again;
+	}
 	
 	return -ENOENT;
 }

@@ -91,10 +91,18 @@ int jg_readdir_filler(struct jgfs_dir_ent *dir_ent, void *user_ptr) {
 int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi) {
 	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
 	int rtn;
-	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
 		return rtn;
 	}
+	
+	if (child->type != TYPE_DIR) {
+		return -ENOTDIR;
+	}
+	
+	/* we want the child's dir clust, not the parent's */
+	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
 	
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
@@ -104,7 +112,7 @@ int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		filler,
 	};
 	
-	return jgfs_dir_foreach(jg_readdir_filler, parent, filler_info);
+	return jgfs_dir_foreach(jg_readdir_filler, dir_clust, filler_info);
 }
 
 int jg_readlink(const char *path, char *link, size_t size) {

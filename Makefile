@@ -3,6 +3,8 @@
 # The source code of this project is distributed under the terms of the
 # simplified BSD license. See the LICENSE file for details.
 
+TIMESTAMP=$(shell date +'%Y%m%d-%H%M')
+
 CC:=x86_64-unknown-linux-gnu-gcc-4.8.0
 CFLAGS:=-std=gnu11 -Og -ggdb -flto -Wall -Wextra -Wno-unused-parameter
 LDFLAGS:=
@@ -19,7 +21,7 @@ FSCK_BIN:=bin/jgfsck
 OBJS=$(patsubst %.c,%.o,$(wildcard src/*/*.c))
 
 
-.PHONY: all clean fuse mkfs fsck
+.PHONY: all clean backup fuse mkfs fsck
 
 # default rule
 all: fuse mkfs fsck
@@ -30,6 +32,9 @@ fsck: $(FSCK_BIN)
 
 clean:
 	rm -rf $(wildcard bin/*) $(wildcard src/*/*.o) $(wildcard src/*/*.dep)
+
+backup:
+	cd .. && tar -acvf jgfs-$(TIMESTAMP).tar.xz jgfs/
 
 
 $(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS))

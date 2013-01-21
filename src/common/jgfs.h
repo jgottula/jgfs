@@ -155,14 +155,14 @@ bool jgfs_find_free_clust(fat_ent_t *dest);
 /* count fat entries with the target value (use FAT_FREE for free blocks) */
 uint16_t jgfs_count_fat(fat_ent_t target);
 
-/* find child with child_name in parent, or return false on failure */
-bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
+/* find child with child_name in parent; return posix error code on failure */
+int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child);
 
 /* find dir clust corresponding to the second-to-last path component, plus the
- * dir ent corresponding to the last component (or NULL for just the parent), or
- * return false on failure */
-bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
+ * dir ent corresponding to the last component (or NULL for just the parent);
+ * return posix error code on failure */
+int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 
 

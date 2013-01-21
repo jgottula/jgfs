@@ -1,5 +1,6 @@
 #include "jgfs.h"
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -243,22 +244,22 @@ uint16_t jgfs_count_fat(fat_ent_t target) {
 	return count;
 }
 
-bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
+int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child) {
 	for (struct jgfs_dir_ent *this_ent = parent->entries;
 		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT) == 0) {
 			*child = this_ent;
-			return true;
+			return 0;
 		}
 	}
 	
 	/* TODO: try next cluster of directory, if present */
 	
-	return false;
+	return -ENOENT;
 }
 
-bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
+int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child) {
 	bool find_child = (child != NULL);
 	
@@ -279,7 +280,11 @@ bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 		!find_child && path_next != NULL)) {
 		if (!jgfs_lookup_child(path_part, dir_clust, &dir_ent)) {
 			free(path_dup);
-			return false;
+			return -ENOENT;
+		}
+		
+		if (dir_ent->type != TYPE_DIR) {
+			return -ENOTDIR;
 		}
 		
 		dir_clust = jgfs_get_clust(dir_ent->begin);
@@ -293,5 +298,5 @@ bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	}
 	
 	free(path_dup);
-	return true;
+	return 0;
 }

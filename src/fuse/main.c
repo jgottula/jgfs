@@ -2,6 +2,7 @@
 #define FUSE_USE_VERSION  26
 #include <err.h>
 #include <fuse.h>
+#include <stdlib.h>
 #include <string.h>
 
 

@@ -20,51 +20,6 @@ struct jgfs_fat_sect *fat  = NULL;
 static uint16_t clusters_total = 0;
 
 
-static void *jgfs_get_sect(uint32_t sect_num) {
-	if (sect_num >= dev_sect) {
-		errx(1, "jgfs_get_sect: tried to access past end of device "
-			"(sect %" PRIu32 ")", sect_num);
-	}
-	
-	return (void *)((struct sect *)dev_mem + sect_num);
-}
-
-static void *jgfs_get_clust(fat_ent_t clust_num) {
-	if (clust_num > FAT_LAST) {
-		errx(1, "jgfs_get_clust: tried to access past FAT_LAST "
-			"(clust %#06" PRIx16 ")", clust_num);
-	} else if (clust_num >= clusters_total) {
-		errx(1, "jgfs_get_clust: tried to access nonexistent cluster "
-			"(clust %#06" PRIx16 ")", clust_num);
-	}
-	
-	return jgfs_get_sect(hdr->s_rsvd + hdr->s_fat + (clust_num * hdr->s_per_c));
-}
-
-static fat_ent_t jgfs_fat_read(fat_ent_t addr) {
-	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
-	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
-	
-	if (fat_sect >= hdr->s_fat) {
-		errx(1, "jgfs_fat_read: tried to access past s_fat "
-			"(fat %#06" PRIx16 ")", addr);
-	}
-	
-	return fat[fat_sect].entries[fat_idx];
-}
-
-static void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
-	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
-	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
-	
-	if (fat_sect >= hdr->s_fat) {
-		errx(1, "jgfs_fat_write: tried to access past s_fat "
-			"(fat %#06" PRIx16 ")", addr);
-	}
-	
-	fat[fat_sect].entries[fat_idx] = val;
-}
-
 static void jgfs_clean_up(void) {
 	if (dev_mem != NULL) {
 		msync(dev_mem, dev_size, MS_SYNC);
@@ -140,10 +95,6 @@ void jgfs_init(const char *dev_path) {
 	jgfs_real_init(dev_path, NULL);
 }
 
-uint32_t jgfs_clust_size(void) {
-	return (SECT_SIZE * hdr->s_per_c);
-}
-
 void jgfs_new(const char *dev_path,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c) {
 	struct jgfs_hdr new_hdr;
@@ -181,4 +132,53 @@ void jgfs_new(const char *dev_path,
 
 void jgfs_done(void) {
 	jgfs_clean_up();
+}
+
+uint32_t jgfs_clust_size(void) {
+	return (SECT_SIZE * hdr->s_per_c);
+}
+
+void *jgfs_get_sect(uint32_t sect_num) {
+	if (sect_num >= dev_sect) {
+		errx(1, "jgfs_get_sect: tried to access past end of device "
+			"(sect %" PRIu32 ")", sect_num);
+	}
+	
+	return (void *)((struct sect *)dev_mem + sect_num);
+}
+
+void *jgfs_get_clust(fat_ent_t clust_num) {
+	if (clust_num > FAT_LAST) {
+		errx(1, "jgfs_get_clust: tried to access past FAT_LAST "
+			"(clust %#06" PRIx16 ")", clust_num);
+	} else if (clust_num >= clusters_total) {
+		errx(1, "jgfs_get_clust: tried to access nonexistent cluster "
+			"(clust %#06" PRIx16 ")", clust_num);
+	}
+	
+	return jgfs_get_sect(hdr->s_rsvd + hdr->s_fat + (clust_num * hdr->s_per_c));
+}
+
+fat_ent_t jgfs_fat_read(fat_ent_t addr) {
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
+	
+	if (fat_sect >= hdr->s_fat) {
+		errx(1, "jgfs_fat_read: tried to access past s_fat "
+			"(fat %#06" PRIx16 ")", addr);
+	}
+	
+	return fat[fat_sect].entries[fat_idx];
+}
+
+void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
+	
+	if (fat_sect >= hdr->s_fat) {
+		errx(1, "jgfs_fat_write: tried to access past s_fat "
+			"(fat %#06" PRIx16 ")", addr);
+	}
+	
+	fat[fat_sect].entries[fat_idx] = val;
 }

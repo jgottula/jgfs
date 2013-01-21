@@ -113,8 +113,12 @@ _Static_assert(sizeof(struct jgfs_dir_clust) == 32,
 void jgfs_init(const char *dev_path);
 void jgfs_new(const char *dev_path,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
-uint32_t jgfs_clust_size(void);
 void jgfs_done(void);
+uint32_t jgfs_clust_size(void);
+void *jgfs_get_sect(uint32_t sect_num);
+void *jgfs_get_clust(fat_ent_t clust_num);
+fat_ent_t jgfs_fat_read(fat_ent_t addr);
+void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
 
 
 extern struct jgfs_hdr      *hdr;

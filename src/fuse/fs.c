@@ -20,6 +20,7 @@
 struct fuse_operations jgfs_oper = {
 	.getattr  = jgfs_getattr,
 	.mknod    = jgfs_mknod,
+	.mkdir    = jgfs_mkdir,
 	.unlink   = jgfs_unlink,
 	.rmdir    = jgfs_rmdir,
 	.readlink = jgfs_readlink,
@@ -241,7 +242,60 @@ int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
 }
 
 int jgfs_mkdir(const char *path, mode_t mode) {
+	const char *path_last = strrchr(path, '/') + 1;
 	
+	if (strlen(path_last) > 19) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_entry *new_ent = NULL;
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	/* find an empty directory entry, and check for entry with same name */
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			new_ent = this_ent;
+		} else if (strcmp(path_last, this_ent->name) == 0) {
+			return -EEXIST;
+		}
+	}
+	
+	/* directory is full */
+	if (new_ent == NULL) {
+		return -ENOSPC;
+	}
+	
+	fat_ent_t dest_addr;
+	if (!find_free_cluster(&dest_addr)) {
+		return -ENOSPC;
+	}
+	
+	struct jgfs_dir_cluster new_cluster;
+	
+	memset(&new_cluster, 0, sizeof(new_cluster));
+	new_cluster.me = dest_addr;
+	new_cluster.parent = parent_cluster.me;
+	
+	write_sector(CLUSTER(dest_addr), &new_cluster);
+	
+	memset(new_ent, 0, sizeof(*new_ent));
+	strcpy(new_ent->name, path_last);
+	new_ent->mtime = time(NULL);
+	new_ent->attrib = ATTR_DIR;
+	new_ent->size  = 512;
+	new_ent->begin = dest_addr;
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	return 0;
 }
 
 int jgfs_unlink(const char *path) {

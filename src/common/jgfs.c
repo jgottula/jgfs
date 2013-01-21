@@ -317,3 +317,33 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	
 	return 0;
 }
+
+int jgfs_create_dir_ent(struct jgfs_dir_clust *parent,
+	const struct jgfs_dir_ent *new_ent) {
+	struct jgfs_dir_ent *old_ent;
+	if (jgfs_lookup_child(new_ent->name, parent, &old_ent) == 0) {
+		return -EEXIST;
+	}
+	
+	struct jgfs_dir_ent *empty_ent;
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			empty_ent = this_ent;
+			goto found;
+		}
+	}
+	
+	/* TODO: try next cluster of directory, if present */
+	
+	/* TODO: on failure to find an empty entry, extend the directory to another
+	 * cluster */
+	
+	/* TODO: on failure to allocate a new cluster, return -ENOSPC */
+	return -ENOSPC;
+	
+found:
+	memcpy(empty_ent, new_ent, sizeof(*empty_ent));
+	
+	return 0;
+}

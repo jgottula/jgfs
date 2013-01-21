@@ -16,6 +16,8 @@
 
 #define JGFS_HDR_SECT 1
 
+#define JGFS_NAME_LIMIT 19
+
 #define JGFS_FENT_PER_S \
 	(SECT_SIZE / sizeof(fat_ent_t))
 
@@ -52,7 +54,8 @@ enum jgfs_fat_val {
 };
 
 struct  __attribute__((__packed__)) jgfs_dir_ent {
-	char      name[20]; // [A-Za-z0-9_.] zero-pad; 19ch max; zero = unused entry
+	char      name[JGFS_NAME_LIMIT + 1]; // [A-Za-z0-9_.] zero padded
+	                                     // empty string means unused entry
 	uint8_t   type;     // type (mutually exclusive)
 	uint8_t   attr;     // attributes (bitmask)
 	uint32_t  mtime;    // unix time

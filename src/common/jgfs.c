@@ -380,7 +380,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {
 	/* TODO:
 	 * - check for existence of child (and scan multi-sector dirs)
 	 * - if child is a dir, check that it is empty
-	 * - follow the child's fat chain and set all to FAT_FREE
+	 * - reuse common code: truncate the file to zero length
 	 * - clear out the child entry
 	 * - if we have completely cleared out a dir cluster of the parent, we must
 	 *   remove that cluster:

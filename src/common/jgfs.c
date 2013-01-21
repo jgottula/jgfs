@@ -14,9 +14,11 @@ static void    *dev_mem  = NULL;
 static uint64_t dev_size = 0;
 static uint64_t dev_sect = 0;
 
-struct jgfs_hdr      *hdr  = NULL;
-struct sect          *rsvd = NULL;
-struct jgfs_fat_sect *fat  = NULL;
+struct jgfs jgfs = {
+	.hdr  = NULL,
+	.rsvd = NULL,
+	.fat  = NULL,
+};
 
 static uint16_t clusters_total = 0;
 
@@ -79,32 +81,34 @@ static void jgfs_init_real(const char *dev_path,
 		err(1, "mmap failed");
 	}
 	
-	hdr = jgfs_get_sect(JGFS_HDR_SECT);
+	jgfs.hdr = jgfs_get_sect(JGFS_HDR_SECT);
 	
 	if (new_hdr != NULL) {
-		memset(hdr, 0, SECT_SIZE);
-		memcpy(hdr, new_hdr, sizeof(*hdr));
+		memset(jgfs.hdr, 0, SECT_SIZE);
+		memcpy(jgfs.hdr, new_hdr, sizeof(*jgfs.hdr));
 	}
 	
-	if (memcmp(hdr->magic, JGFS_MAGIC, sizeof(hdr->magic)) != 0) {
+	if (memcmp(jgfs.hdr->magic, JGFS_MAGIC, sizeof(jgfs.hdr->magic)) != 0) {
 		errx(1, "jgfs header not found");
 	}
 	
-	if (hdr->ver_major != JGFS_VER_MAJOR || hdr->ver_minor != JGFS_VER_MINOR) {
+	if (jgfs.hdr->ver_major != JGFS_VER_MAJOR ||
+		jgfs.hdr->ver_minor != JGFS_VER_MINOR) {
 		errx(1, "incompatible filesystem (%#06" PRIx16 ")",
-			JGFS_VER_EXPAND(hdr->ver_major, hdr->ver_minor));
+			JGFS_VER_EXPAND(jgfs.hdr->ver_major, jgfs.hdr->ver_minor));
 	}
 	
-	if (dev_sect < hdr->s_total) {
+	if (dev_sect < jgfs.hdr->s_total) {
 		errx(1, "filesystem exceeds device bounds");
 	}
 	
-	rsvd = jgfs_get_sect(JGFS_HDR_SECT + 1);
-	fat  = jgfs_get_sect(hdr->s_rsvd);
+	jgfs.rsvd = jgfs_get_sect(JGFS_HDR_SECT + 1);
+	jgfs.fat  = jgfs_get_sect(jgfs.hdr->s_rsvd);
 	
-	clusters_total = (hdr->s_total - (hdr->s_rsvd + hdr->s_fat)) / hdr->s_per_c;
+	clusters_total = (jgfs.hdr->s_total - (jgfs.hdr->s_rsvd +
+		jgfs.hdr->s_fat)) / jgfs.hdr->s_per_c;
 	
-	if (hdr->s_fat < CEIL(clusters_total, JGFS_FENT_PER_S)) {
+	if (jgfs.hdr->s_fat < CEIL(clusters_total, JGFS_FENT_PER_S)) {
 		errx(1, "fat is too small");
 	}
 }
@@ -163,7 +167,7 @@ void jgfs_sync(void) {
 }
 
 uint32_t jgfs_clust_size(void) {
-	return (SECT_SIZE * hdr->s_per_c);
+	return (SECT_SIZE * jgfs.hdr->s_per_c);
 }
 
 void *jgfs_get_sect(uint32_t sect_num) {
@@ -184,37 +188,38 @@ void *jgfs_get_clust(fat_ent_t clust_num) {
 			"(clust %#06" PRIx16 ")", clust_num);
 	}
 	
-	return jgfs_get_sect(hdr->s_rsvd + hdr->s_fat + (clust_num * hdr->s_per_c));
+	return jgfs_get_sect(jgfs.hdr->s_rsvd + jgfs.hdr->s_fat +
+		(clust_num * jgfs.hdr->s_per_c));
 }
 
 fat_ent_t jgfs_fat_read(fat_ent_t addr) {
 	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
 	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
 	
-	if (fat_sect >= hdr->s_fat) {
+	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_read: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
 	}
 	
-	return fat[fat_sect].entries[fat_idx];
+	return jgfs.fat[fat_sect].entries[fat_idx];
 }
 
 void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
 	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
 	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
 	
-	if (fat_sect >= hdr->s_fat) {
+	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_write: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
 	}
 	
-	fat[fat_sect].entries[fat_idx] = val;
+	jgfs.fat[fat_sect].entries[fat_idx] = val;
 }
 
 bool jgfs_find_free_clust(fat_ent_t *dest) {
-	for (uint16_t i = 0; i < hdr->s_fat; ++i) {
+	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
-			if (fat[i].entries[j] == FAT_FREE) {
+			if (jgfs.fat[i].entries[j] == FAT_FREE) {
 				*dest = (i * JGFS_FENT_PER_S) + j;
 				return true;
 			}
@@ -227,9 +232,9 @@ bool jgfs_find_free_clust(fat_ent_t *dest) {
 uint16_t jgfs_count_fat(fat_ent_t target) {
 	uint16_t count = 0;
 	
-	for (uint16_t i = 0; i < hdr->s_fat; ++i) {
+	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
-			if (fat[i].entries[j] == target) {
+			if (jgfs.fat[i].entries[j] == target) {
 				++count;
 			}
 		}

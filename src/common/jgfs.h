@@ -102,6 +102,12 @@ struct __attribute__((__packed__)) jgfs_hdr {
 	char     reserved[0x1d0];
 };
 
+struct jgfs {
+	struct jgfs_hdr      *hdr;
+	struct sect          *rsvd;
+	struct jgfs_fat_sect *fat;
+};
+
 
 _Static_assert(sizeof(struct sect) == 0x200,
 	"sect must be 512 bytes");
@@ -133,9 +139,7 @@ bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 
 
-extern struct jgfs_hdr      *hdr;
-extern struct sect          *rsvd;
-extern struct jgfs_fat_sect *fat;
+extern struct jgfs jgfs;
 
 
 #endif

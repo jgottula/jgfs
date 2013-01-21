@@ -93,6 +93,22 @@ void write_fat(fat_ent_t addr, fat_ent_t value) {
 	write_sector(hdr.sz_rsvd + (addr / 256), &fat_sector);
 }
 
+bool find_free_cluster(fat_ent_t *addr) {
+	for (uint16_t i = 0; i < hdr.sz_fat; ++i) {
+		struct jgfs_fat_sector fat_sector;
+		read_sector(hdr.sz_rsvd + i, &fat_sector);
+		
+		for (uint16_t j = 0; j < 256; ++j) {
+			if (fat_sector.entries[j] == FAT_FREE) {
+				*addr = (i * 256) + j;
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 int lookup_path(const char *path, struct jgfs_dir_entry *dir_ent) {
 	struct jgfs_dir_cluster dir_cluster;
 	char *path_dup, *path_part;

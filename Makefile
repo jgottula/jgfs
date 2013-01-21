@@ -7,9 +7,9 @@ CC:=x86_64-unknown-linux-gnu-gcc-4.8.0
 CFLAGS:=-std=gnu11 -Og -ggdb -flto -Wall -Wextra -Wno-unused-parameter
 LDFLAGS:=
 
-FUSE_LIBS:=-lfuse
-MKFS_LIBS:=
-FSCK_LIBS:=
+FUSE_LIBS:=-lbsd -lfuse
+MKFS_LIBS:=-lbsd
+FSCK_LIBS:=-lbsd
 
 FUSE_BIN:=bin/jgfs
 MKFS_BIN:=bin/mkjgfs

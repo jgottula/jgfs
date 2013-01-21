@@ -2,29 +2,53 @@
 #define JGFS_COMMON_JGFS_H
 
 
+#include "macro.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+
+#define SECT_SIZE 0x200
+
+#define JGFS_VER_MAJOR 0x02
+#define JGFS_VER_MINOR 0x00
+
+#define JGFS_MAGIC "JGFS"
+
+#define JGFS_HDR_SECT 1
+
+#define JGFS_FAT_ENT_PER_SECT (SECT_SIZE / sizeof(fat_ent_t))
+
+#define JGFS_VER_EXPAND(_maj, _min) \
+	(((uint16_t)_maj * 0x100) + (uint16_t)_min)
+
+
+struct sect {
+	uint8_t data[SECT_SIZE];
+};
+
 /* this header must be located at sector 1 (offset 0x200~0x400) */
-struct jgfs_header {
+struct __attribute__((__packed__)) jgfs_hdr {
 	char     magic[4];  // must be "JGFS"
 	uint8_t  ver_major; // major version
 	uint8_t  ver_minor; // minor version
 	
-	uint16_t sz_total;  // total number of sectors
+	uint32_t s_total;   // total number of sectors
 	
-	uint16_t sz_rsvd;   // sectors reserved for vbr + header + boot area
-	uint16_t sz_fat;    // sectors reserved for the fat
+	uint16_t s_rsvd;    // sectors reserved for vbr + header + boot area
+	uint16_t s_fat;     // sectors reserved for the fat
 	
 	uint16_t s_per_c;   // sectors per cluster
 	
-	char     reserved[0x1f2];
+	char     reserved[0x1f0];
 };
 
 typedef uint16_t fat_ent_t;
 
-struct jgfs_fat_sector {
-	fat_ent_t entries[0x100];
+struct jgfs_fat_sect {
+	fat_ent_t entries[JGFS_FAT_ENT_PER_SECT];
 };
 
-enum jgfs_fat_entry {
+enum jgfs_fat_val {
 	FAT_FREE  = 0x0000, // free
 	FAT_ROOT  = 0x0000, // root directory
 	
@@ -39,38 +63,59 @@ enum jgfs_fat_entry {
 	FAT_OOB   = 0xffff, // past end of device
 };
 
-struct jgfs_dir_entry {
+struct  __attribute__((__packed__)) jgfs_dir_ent {
 	char      name[20]; // [A-Za-z0-9_.] zero-pad; 19ch max; zero = unused entry
+	uint8_t   type;     // type (mutually exclusive)
+	uint8_t   attr;     // attributes (bitmask)
 	uint32_t  mtime;    // unix time
-	uint16_t  attrib;   // file/dir attributes
-	fat_ent_t begin;    // first cluster of file/dir (0 for empty file)
-	uint32_t  size;     // file size in bytes
+	uint32_t  size;     // size in bytes
+	fat_ent_t begin;    // first cluster (0 for empty file)
 };
 
-enum jgfs_file_attrib {
-	ATTR_FILE    = (1 << 0), // regular file
-	ATTR_DIR     = (1 << 1), // directory
-	ATTR_SYMLINK = (1 << 2), // symlink
+enum jgfs_file_type {
+	TYPE_FILE    = (1 << 0), // regular file
+	TYPE_DIR     = (1 << 1), // directory
+	TYPE_SYMLINK = (1 << 2), // symlink
 };
 
-struct jgfs_dir_cluster {
+enum jgfs_file_attr {
+	ATTR_NONE = 0,
+	
+	/* ... */
+};
+
+struct __attribute__((__packed__)) jgfs_dir_clust {
 	fat_ent_t me;         // first cluster of this dir
 	fat_ent_t parent;     // first cluster of parent dir
 	
 	char      reserved[28];
 	
-	struct jgfs_dir_entry entries[0];
+	struct jgfs_dir_ent entries[0];
 };
 
 
-_Static_assert(sizeof(struct jgfs_header) == 0x200,
-	"jgfs_header must be 512 bytes");
-_Static_assert(sizeof(struct jgfs_fat_sector) == 0x200,
-	"jgfs_fat_sector must be 512 bytes");
-_Static_assert(sizeof(struct jgfs_dir_entry) == 32,
-	"jgfs_dir_entry must be 32 bytes");
-_Static_assert(sizeof(struct jgfs_dir_cluster) == 32,
-	"jgfs_dir_cluster must be 32 bytes");
+_Static_assert(sizeof(struct sect) == 0x200,
+	"sect must be 512 bytes");
+_Static_assert(sizeof(struct jgfs_hdr) == 0x200,
+	"jgfs_hdr must be 512 bytes");
+_Static_assert(sizeof(struct jgfs_fat_sect) == 0x200,
+	"jgfs_fat_sect must be 512 bytes");
+_Static_assert(sizeof(struct jgfs_dir_ent) == 32,
+	"jgfs_dir_ent must be 32 bytes");
+_Static_assert(sizeof(struct jgfs_dir_clust) == 32,
+	"jgfs_dir_clust must be 32 bytes");
+
+
+void jgfs_init(const char *dev_path);
+void jgfs_new(const char *dev_path,
+	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
+uint32_t jgfs_clust_size(void);
+void jgfs_done(void);
+
+
+extern struct jgfs_hdr      *hdr;
+extern struct sect          *rsvd;
+extern struct jgfs_fat_sect *fat;
 
 
 #endif

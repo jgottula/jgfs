@@ -223,3 +223,56 @@ bool jgfs_find_free_clust(fat_ent_t *dest) {
 	
 	return false;
 }
+
+bool jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
+	struct jgfs_dir_ent **child) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
+		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT) == 0) {
+			*child = this_ent;
+			return true;
+		}
+	}
+	
+	/* TODO: try next cluster of directory, if present */
+	
+	return false;
+}
+
+bool jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
+	struct jgfs_dir_ent **child) {
+	bool find_child = (child != NULL);
+	
+	struct jgfs_dir_clust *dir_clust;
+	struct jgfs_dir_ent   *dir_ent;
+	
+	dir_clust = jgfs_get_clust(FAT_ROOT);
+	
+	char *strtok_save;
+	char *path_dup = strdup(path);
+	char *path_part = strtok_r(path_dup, "/", &strtok_save);
+	char *path_next;
+	
+	/* bail out before the last path component, but only if we weren't asked to
+	 * find the child (we always at least find the parent) */
+	while (path_part != NULL &&
+		(path_next = strtok_r(NULL, "/", &strtok_save),
+		!find_child && path_next != NULL)) {
+		if (!jgfs_lookup_child(path_part, dir_clust, &dir_ent)) {
+			free(path_dup);
+			return false;
+		}
+		
+		dir_clust = jgfs_get_clust(dir_ent->begin);
+		path_part = path_next;
+	}
+	
+	/* only assign to output pointers on success */
+	*parent = dir_clust;
+	if (find_child) {
+		*child = dir_ent;
+	}
+	
+	free(path_dup);
+	return true;
+}

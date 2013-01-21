@@ -278,6 +278,8 @@ int jgfs_mkdir(const char *path, mode_t mode) {
 		return -ENOSPC;
 	}
 	
+	write_fat(dest_addr, FAT_EOF);
+	
 	struct jgfs_dir_cluster new_cluster;
 	
 	memset(&new_cluster, 0, sizeof(new_cluster));

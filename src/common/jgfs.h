@@ -123,6 +123,9 @@ _Static_assert(sizeof(struct jgfs_dir_clust) == 32,
 	"jgfs_dir_clust must be 32 bytes");
 
 
+typedef void (*jgfs_dir_func_t)(struct jgfs_dir_ent *);
+
+
 /* load jgfs from the device at dev_path */
 void jgfs_init(const char *dev_path);
 
@@ -166,6 +169,9 @@ int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
  * return posix error code on failure */
 int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
+
+/* call func once for each dir ent in parent */
+void jgfs_dir_foreach(struct jgfs_dir_clust *parent, jgfs_dir_func_t func);
 
 
 extern struct jgfs jgfs;

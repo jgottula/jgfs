@@ -300,3 +300,14 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	free(path_dup);
 	return 0;
 }
+
+void jgfs_dir_foreach(struct jgfs_dir_clust *parent, jgfs_dir_func_t func) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
+		if (this_ent->name[0] != '\0') {
+			func(this_ent);
+		}
+	}
+	
+	/* TODO: goto next cluster of directory, if present */
+}

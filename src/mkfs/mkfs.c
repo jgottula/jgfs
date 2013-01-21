@@ -1,12 +1,13 @@
 #include <assert.h>
 #include <err.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
 #include "../common/jgfs.h"
 #include "../common/version.h"
@@ -92,16 +93,19 @@ void do_root_dir(void) {
 	memset(root_dir.entries, 0, sizeof(root_dir.entries));
 	
 	strcpy(root_dir.entries[0].name, "dir");
+	root_dir.entries[0].mtime  = time(NULL);
 	root_dir.entries[0].attrib = ATTR_DIR;
 	root_dir.entries[0].begin  = 1;
 	root_dir.entries[0].size   = 512;
 	
 	strcpy(root_dir.entries[1].name, "file1");
+	root_dir.entries[1].mtime  = time(NULL);
 	root_dir.entries[1].attrib = ATTR_FILE;
-	root_dir.entries[1].begin = 2;
-	root_dir.entries[1].size  = 42;
+	root_dir.entries[1].begin  = 2;
+	root_dir.entries[1].size   = 42;
 	
 	strcpy(root_dir.entries[2].name, "link_to_file2");
+	root_dir.entries[2].mtime  = time(NULL);
 	root_dir.entries[2].attrib = ATTR_SYMLINK;
 	root_dir.entries[2].begin  = 3;
 	root_dir.entries[2].size   = 9;
@@ -119,14 +123,16 @@ void do_root_dir(void) {
 	memset(sub_dir.entries, 0, sizeof(sub_dir.entries));
 	
 	strcpy(sub_dir.entries[0].name, "file2");
+	sub_dir.entries[0].mtime  = time(NULL);
 	sub_dir.entries[0].attrib = ATTR_FILE;
-	sub_dir.entries[0].begin = 4;
-	sub_dir.entries[0].size = 1024;
+	sub_dir.entries[0].begin  = 4;
+	sub_dir.entries[0].size   = 1024;
 	
 	strcpy(sub_dir.entries[1].name, "empty_dir");
+	sub_dir.entries[1].mtime  = time(NULL);
 	sub_dir.entries[1].attrib = ATTR_DIR;
-	sub_dir.entries[1].begin = 6;
-	sub_dir.entries[1].size = 512;
+	sub_dir.entries[1].begin  = 6;
+	sub_dir.entries[1].size   = 512;
 	
 	warnx("writing second directory cluster");
 	write_sector(SZ_NDATA + 1, &sub_dir);

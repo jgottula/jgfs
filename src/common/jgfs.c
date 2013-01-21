@@ -333,6 +333,29 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	return 0;
 }
 
+uint32_t jgfs_dir_count_ents(struct jgfs_dir_clust *parent) {
+	uint32_t count = 0;
+	
+	fat_ent_t parent_addr = parent->me;
+	struct jgfs_dir_clust *parent_n = parent;
+	
+next_dir_clust:
+	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
+		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
+		if (this_ent->name[0] != '\0') {
+			++count;
+		}
+	}
+	
+	/* try the next cluster in the directory, if present */
+	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
+		parent_n = jgfs_get_clust(parent_addr);
+		goto next_dir_clust;
+	}
+	
+	return count;
+}
+
 int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr) {
 	fat_ent_t parent_addr = parent->me;

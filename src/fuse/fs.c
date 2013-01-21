@@ -26,6 +26,7 @@ struct fuse_operations jgfs_oper = {
 	.unlink   = jgfs_unlink,
 	.rmdir    = jgfs_rmdir,
 	.symlink  = jgfs_symlink,
+	.rename   = jgfs_rename,
 	.readlink = jgfs_readlink,
 	.open     = jgfs_open,
 	.read     = jgfs_read,
@@ -452,8 +453,70 @@ int jgfs_symlink(const char *target, const char *path) {
 	return 0;
 }
 
+/* TODO: fix this for the case where the parent dirs are the same (a rename
+ * within a single directory) */
 int jgfs_rename(const char *path, const char *newpath) {
+	const char *path_last = strrchr(path, '/') + 1;
+	const char *newpath_last = strrchr(newpath, '/') + 1;
 	
+	if (strlen(newpath_last) > 19) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_entry new_parent_ent;
+	if ((rtn = lookup_parent(newpath, &new_parent_ent)) != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	struct jgfs_dir_cluster new_parent_cluster;
+	read_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
+	
+	struct jgfs_dir_entry *old_ent = NULL;
+	
+	/* find the old dir_ent */
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (strcmp(path_last, this_ent->name) == 0) {
+			old_ent = this_ent;
+		}
+	}
+	
+	if (old_ent == NULL) {
+		return -ENOENT;
+	}
+	
+	struct jgfs_dir_entry *new_ent = NULL;
+	
+	/* find an empty directory entry, and check for entry with same name */
+	for (struct jgfs_dir_entry *this_ent = new_parent_cluster.entries;
+		this_ent < new_parent_cluster.entries + 15; ++this_ent) {
+		if (this_ent->name[0] == '\0') {
+			new_ent = this_ent;
+		} else if (strcmp(path_last, this_ent->name) == 0) {
+			return -EEXIST;
+		}
+	}
+	
+	if (new_ent == NULL) {
+		return -ENOSPC;
+	}
+	
+	*new_ent = *old_ent;
+	memset(old_ent, 0, sizeof(*old_ent));
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	write_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
+	
+	return 0;
 }
 
 int jgfs_readlink(const char *path, char *link, size_t size) {

@@ -176,6 +176,10 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr);
 
+/* add new (valid) dir ent to parent; return posix error code on failure */
+int jgfs_create_ent(struct jgfs_dir_clust *parent,
+	const struct jgfs_dir_ent *new_ent);
+
 /* add new file called name to parent; return posix error code on failure */
 int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name);
 

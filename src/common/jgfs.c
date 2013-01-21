@@ -353,7 +353,7 @@ next_dir_clust:
 	return 0;
 }
 
-static int jgfs_create_ent(struct jgfs_dir_clust *parent,
+int jgfs_create_ent(struct jgfs_dir_clust *parent,
 	const struct jgfs_dir_ent *new_ent) {
 	if (strlen(new_ent->name) == 0) {
 		errx(1, "jgfs_create_ent: new_ent->name is empty");

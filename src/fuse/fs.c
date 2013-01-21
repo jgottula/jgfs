@@ -189,28 +189,28 @@ int jgfs_getattr(const char *path, struct stat *buf) {
 }
 
 int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
-	const char *path_file = strrchr(path, '/') + 1;
+	const char *path_last = strrchr(path, '/') + 1;
 	
-	if (strlen(path_file) > 19) {
+	if (strlen(path_last) > 19) {
 		return -ENAMETOOLONG;
 	}
 	
-	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_parent(path, &dir_ent);
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
 	if (rtn != 0) {
 		return rtn;
 	}
 	
 	struct jgfs_dir_entry *new_ent = NULL;
-	struct jgfs_dir_cluster dir_cluster;
-	read_sector(CLUSTER(dir_ent.begin), &dir_cluster);
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
 	
 	/* find an empty directory entry, and check for entry with same name */
-	for (struct jgfs_dir_entry *this_ent = dir_cluster.entries;
-		this_ent < dir_cluster.entries + 15; ++this_ent) {
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
 		if (this_ent->name[0] == '\0') {
 			new_ent = this_ent;
-		} else if (strcmp(path_file, this_ent->name) == 0) {
+		} else if (strcmp(path_last, this_ent->name) == 0) {
 			return -EEXIST;
 		}
 	}
@@ -221,7 +221,7 @@ int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
 	}
 	
 	memset(new_ent, 0, sizeof(*new_ent));
-	strcpy(new_ent->name, path_file);
+	strcpy(new_ent->name, path_last);
 	new_ent->mtime = time(NULL);
 	new_ent->size  = 0;
 	new_ent->begin = 0;
@@ -235,7 +235,7 @@ int jgfs_mknod(const char *path, mode_t mode, dev_t dev) {
 		return -EPERM;
 	}
 	
-	write_sector(CLUSTER(dir_ent.begin), &dir_cluster);
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
 	
 	return 0;
 }

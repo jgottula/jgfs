@@ -269,7 +269,7 @@ int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 next_dir_clust:
 	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
 		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
-		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT) == 0) {
+		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT + 1) == 0) {
 			*child = this_ent;
 			return 0;
 		}

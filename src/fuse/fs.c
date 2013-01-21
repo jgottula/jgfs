@@ -20,21 +20,23 @@
 
 
 struct fuse_operations jgfs_oper = {
-	.getattr  = jgfs_getattr,
-	.mknod    = jgfs_mknod,
-	.mkdir    = jgfs_mkdir,
-	.unlink   = jgfs_unlink,
-	.rmdir    = jgfs_rmdir,
-	.symlink  = jgfs_symlink,
-	.rename   = jgfs_rename,
-	.readlink = jgfs_readlink,
-	.open     = jgfs_open,
-	.read     = jgfs_read,
-	.statfs   = jgfs_statfs,
-	.readdir  = jgfs_readdir,
-	.init     = jgfs_init,
-	.destroy  = jgfs_destroy,
-	.utimens  = jgfs_utimens,
+	.getattr   = jgfs_getattr,
+	.mknod     = jgfs_mknod,
+	.mkdir     = jgfs_mkdir,
+	.unlink    = jgfs_unlink,
+	.rmdir     = jgfs_rmdir,
+	.symlink   = jgfs_symlink,
+	.rename    = jgfs_rename,
+	.truncate  = jgfs_truncate,
+	.readlink  = jgfs_readlink,
+	.open      = jgfs_open,
+	.read      = jgfs_read,
+	.statfs    = jgfs_statfs,
+	.readdir   = jgfs_readdir,
+	.init      = jgfs_init,
+	.destroy   = jgfs_destroy,
+	.ftruncate = jgfs_ftruncate,
+	.utimens   = jgfs_utimens,
 };
 
 extern char *dev_path;
@@ -527,6 +529,102 @@ int jgfs_rename(const char *path, const char *newpath) {
 	return 0;
 }
 
+int jgfs_truncate(const char *path, off_t newsize) {
+	const char *path_last = strrchr(path, '/') + 1;
+	
+	struct jgfs_dir_entry parent_ent;
+	int rtn = lookup_parent(path, &parent_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	struct jgfs_dir_cluster parent_cluster;
+	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	struct jgfs_dir_entry *dir_ent = NULL;
+	
+	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
+		this_ent < parent_cluster.entries + 15; ++this_ent) {
+		if (strcmp(path_last, this_ent->name) == 0) {
+			dir_ent = this_ent;
+			break;
+		}
+	}
+	
+	if (dir_ent == NULL) {
+		return -ENOENT;
+	}
+	
+	bool nospc = false;
+	
+	if (newsize < dir_ent->size) {
+		uint16_t new_count = GET_BLOCKS(newsize), cluster_count = 0;
+		fat_ent_t data_addr = dir_ent->begin, old_value;
+		
+		do {
+			++cluster_count;
+			
+			old_value = read_fat(data_addr);
+			
+			if (cluster_count == new_count) {
+				write_fat(data_addr, FAT_EOF);
+			} else if (cluster_count > new_count) {
+				write_fat(data_addr, FAT_FREE);
+			}
+			
+			data_addr = old_value;
+			++cluster_count;
+		} while (old_value != FAT_EOF);
+		
+		if (newsize == 0) {
+			dir_ent->begin = 0;
+		}
+		
+		dir_ent->size = newsize;
+	} else if (newsize > dir_ent->size) {
+		uint16_t add_count = GETBLOCKS(newsize) - GETBLOCKS(dir_ent->size),
+			cluster_count = 0;
+		
+		/* allocate the first cluster if the file is empty */
+		if (dir_ent->size == 0) {
+			if (!find_free_cluster(&dir_ent->begin)) {
+				nospc = true;
+				goto bail;
+			}
+			
+			write_fat(dir_ent->begin, FAT_EOF);
+			--add_count;
+		}
+		
+		fat_ent_t data_addr = dir_ent->begin, old_value;
+		
+		while ()
+		
+		while (cluster_count < add_count) {
+			old_value = read_fat(data_addr);
+			
+			if ()
+			
+			
+			/* incr cluster_count */
+		}
+		
+		
+		/* TODO: specially handle case where size was zero */
+		
+		/* incrementally increment dir_ent->file_size until space runs out */
+		
+		/* if space runs out, set nospc to true and leave */
+	}
+	
+bail:
+	dir_ent->mtime = time(NULL);
+	
+	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
+	
+	return (nospc ? -ENOSPC : 0);
+}
+
 int jgfs_readlink(const char *path, char *link, size_t size) {
 	struct jgfs_dir_entry dir_ent;
 	int rtn = lookup_path(path, &dir_ent);
@@ -558,7 +656,6 @@ int jgfs_open(const char *path, struct fuse_file_info *fi) {
 int jgfs_read(const char *path, char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
 	fat_ent_t data_addr;
-	uint32_t file_size;
 	int b_read = 0;
 	
 	struct jgfs_dir_entry dir_ent;
@@ -567,7 +664,7 @@ int jgfs_read(const char *path, char *buf, size_t size, off_t offset,
 		return rtn;
 	}
 	
-	file_size = dir_ent.size;
+	uint32_t file_size = dir_ent.size;
 	
 	memset(buf, 0, size);
 	
@@ -612,6 +709,40 @@ int jgfs_read(const char *path, char *buf, size_t size, off_t offset,
 	}
 	
 	return b_read;
+}
+
+/* check for cases: (using 2K file)
+ * append 512 @ 2048
+ * overwrite 512 @ 1024
+ * overwrite/append 1024 @ 1536
+ * append 512 @ 3072
+ */
+int jgfs_write(const char *path, const char *buf, size_t size, off_t offset,
+	struct fuse_file_info *fi) {
+	fat_ent_t data_addr;
+	int b_written = 0;
+	
+	struct jgfs_dir_entry dir_ent;
+	int rtn = lookup_path(path, &dir_ent);
+	if (rtn != 0) {
+		return rtn;
+	}
+	
+	uint32_t file_size = dir_ent.size;
+	
+	/* if offset is greater than file_size, call jgfs_ftruncate first;
+	 * then, make sure and update the dir_ent and file_size! */
+	
+	
+	
+	
+	
+	/* specially handle case where filesize was zero */
+	
+	
+	/* be sure to update mtime with time(NULL), even for 0 bytes or ENOSPC */
+	
+	return b_written;
 }
 
 int jgfs_statfs(const char *path, struct statvfs *statv) {
@@ -699,6 +830,10 @@ void jgfs_destroy(void *userdata) {
 	close(dev_fd);
 	
 	free(fat);
+}
+
+int jgfs_ftruncate(const char *path, off_t newsize, struct fuse_file_info *fi) {
+	return jgfs_truncate(path, newsize);
 }
 
 int jgfs_utimens(const char *path, const struct timespec tv[2]) {

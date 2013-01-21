@@ -17,8 +17,8 @@ FUSE_BIN:=bin/jgfs
 MKFS_BIN:=bin/mkjgfs
 FSCK_BIN:=bin/jgfsck
 
-# resolved when referenced
 OBJS=$(patsubst %.c,%.o,$(wildcard src/*/*.c))
+COMMON_OBJS=$(filter src/common/%.o,$(OBJS))
 
 
 .PHONY: all clean backup fuse mkfs fsck
@@ -37,11 +37,11 @@ backup:
 	cd .. && tar -acvf jgfs-$(TIMESTAMP).tar.xz jgfs/
 
 
-$(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS))
+$(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS)) $(COMMON_OBJS)
 	$(CC) $(CFLAGS) $(FUSE_LIBS) -o $@ $^
-$(MKFS_BIN): $(filter src/mkfs/%.o,$(OBJS))
+$(MKFS_BIN): $(filter src/mkfs/%.o,$(OBJS)) $(COMMON_OBJS)
 	$(CC) $(CFLAGS) $(MKFS_LIBS) -o $@ $^
-$(FSCK_BIN): $(filter src/fsck/%.o,$(OBJS))
+$(FSCK_BIN): $(filter src/fsck/%.o,$(OBJS)) $(COMMON_OBJS)
 	$(CC) $(CFLAGS) $(FSCK_LIBS) -o $@ $^
 
 

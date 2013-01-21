@@ -545,7 +545,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {
 	}
 	
 	/* deallocate all the clusters associated with the dir ent */
-	if ((rtn = jgfs_reduce(child, 0)) != 0) {
+	if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
 		return rtn;
 	}
 	

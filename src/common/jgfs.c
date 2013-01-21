@@ -355,6 +355,10 @@ next_dir_clust:
 
 static int jgfs_create_ent(struct jgfs_dir_clust *parent,
 	const struct jgfs_dir_ent *new_ent) {
+	if (strlen(new_ent->name) == 0) {
+		errx(1, "jgfs_create_ent: new_ent->name is empty");
+	}
+	
 	struct jgfs_dir_ent *old_ent;
 	if (jgfs_lookup_child(new_ent->name, parent, &old_ent) == 0) {
 		return -EEXIST;

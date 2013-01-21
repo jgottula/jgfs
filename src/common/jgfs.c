@@ -301,14 +301,19 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	return 0;
 }
 
-void jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
+int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr) {
 	for (struct jgfs_dir_ent *this_ent = parent->entries;
 		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] != '\0') {
-			func(this_ent, user_ptr);
+			int rtn;
+			if ((rtn = func(this_ent, user_ptr)) != 0) {
+				return rtn;
+			}
 		}
 	}
 	
 	/* TODO: goto next cluster of directory, if present */
+	
+	return 0;
 }

@@ -123,7 +123,7 @@ _Static_assert(sizeof(struct jgfs_dir_clust) == 32,
 	"jgfs_dir_clust must be 32 bytes");
 
 
-typedef void (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
+typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
 
 
 /* load jgfs from the device at dev_path */
@@ -171,8 +171,9 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 
 /* call func once for each dir ent in parent with the dir ent and the
- * user-provided pointer as arguments */
-void jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
+ * user-provided pointer as arguments; if func returns nonzero, the foreach
+ * immediately terminates with the same return value */
+int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr);
 
 

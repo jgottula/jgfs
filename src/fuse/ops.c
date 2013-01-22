@@ -167,6 +167,10 @@ int jg_mknod(const char *path, mode_t mode, dev_t dev) {
 	}
 	
 	char *path_last = strrchr(path, '/') + 1;
+	if (path_last == NULL || path_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	}
 	
 	return jgfs_create_file(parent, path_last);
 }
@@ -179,6 +183,10 @@ int jg_mkdir(const char *path, mode_t mode) {
 	}
 	
 	char *path_last = strrchr(path, '/') + 1;
+	if (path_last == NULL || path_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	}
 	
 	return jgfs_create_dir(parent, path_last);
 }
@@ -221,13 +229,29 @@ int jg_symlink(const char *target, const char *path) {
 	}
 	
 	char *path_last = strrchr(path, '/') + 1;
+	if (path_last == NULL || path_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	}
 	
 	return jgfs_create_symlink(parent, path_last, target);
 }
 
 int jg_rename(const char *path, const char *newpath) {
-	/* TODO: be sure to check if the new filename is zero-length; this may be
-	 * done here or in the common/jgfs.c function, if any */
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	char *newpath_last = strrchr(newpath, '/') + 1;
+	if (newpath_last == NULL || newpath_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	}
+	
+	
 	
 	return -ENOSYS;
 #if 0

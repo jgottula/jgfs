@@ -470,7 +470,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
 		/* if we can't allocate a cluster for the directory, go back and
 		 * delete the directory entry so things are in a consistent state */
-		if ((errno = jgfs_delete_ent(parent, name)) != 0) {
+		if ((errno = jgfs_delete_ent(parent, name, true)) != 0) {
 			err(1, "jgfs_create_dir: could not undo dir ent creation");
 		}
 		
@@ -512,7 +512,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
 		/* if we can't allocate a cluster for the symlink, go back and
 		 * delete the directory entry so things are in a consistent state */
-		if ((errno = jgfs_delete_ent(parent, name)) != 0) {
+		if ((errno = jgfs_delete_ent(parent, name, true)) != 0) {
 			err(1, "jgfs_create_symlink: could not undo dir ent creation");
 		}
 		
@@ -529,24 +529,27 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	return 0;
 }
 
-int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name) {
+int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
+	bool dealloc) {
 	struct jgfs_dir_ent *child;
 	int rtn;
 	if ((rtn = jgfs_lookup_child(name, parent, &child)) != 0) {
 		return rtn;
 	}
 	
-	/* check for directory emptiness, if appropriate */
-	if (child->type == TYPE_DIR) {
-		struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
-		if (jgfs_dir_count_ents(dir_clust) != 0) {
-			return -ENOTEMPTY;
+	if (dealloc) {
+		/* check for directory emptiness, if appropriate */
+		if (child->type == TYPE_DIR) {
+			struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
+			if (jgfs_dir_count_ents(dir_clust) != 0) {
+				return -ENOTEMPTY;
+			}
 		}
-	}
-	
-	/* deallocate all the clusters associated with the dir ent */
-	if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
-		return rtn;
+		
+		/* deallocate all the clusters associated with the dir ent */
+		if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
+			return rtn;
+		}
 	}
 	
 	/* erase this dir ent from the parent dir cluster */
@@ -618,7 +621,7 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 		errx(1, "jgfs_enlarge: new_size is not larger");
 	}
 	
-	
+	/* TODO */
 	
 	return -ENOSYS;
 }

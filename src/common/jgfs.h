@@ -200,9 +200,10 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name);
 int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	const char *target);
 
-/* delete the dir ent with the given name from parent; return posix error code
- * on failure */
-int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name);
+/* delete the dir ent with the given name from parent, deallocating the file or
+ * directory if requested; return posix error code on failure */
+int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
+	bool dealloc);
 
 /* deallocate unused clusters from a directory */
 void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust);

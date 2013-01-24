@@ -212,17 +212,17 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	return &(jgfs.fat[fat_sect].entries[fat_idx]);
 }
 
-bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest) {
+int jgfs_fat_find(fat_ent_t target, fat_ent_t *dest) {
 	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
 			if (jgfs.fat[i].entries[j] == target) {
 				*dest = (i * JGFS_FENT_PER_S) + j;
-				return true;
+				return JGFS_OK;
 			}
 		}
 	}
 	
-	return false;
+	return JGFS_NOFENT;
 }
 
 uint16_t jgfs_fat_count(fat_ent_t target) {
@@ -250,11 +250,11 @@ int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT + 1) == 0) {
 			*child = this_ent;
-			return 0;
+			return JGFS_OK;
 		}
 	}
 	
-	return -ENOENT;
+	return JGFS_NODENT;
 }
 
 int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
@@ -278,16 +278,16 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 		(path_next = strtok_r(NULL, "/", &strtok_save),
 		find_child || path_next != NULL)) {
 		
-		if (jgfs_lookup_child(path_part, dir_clust, &dir_ent) != 0) {
+		if (jgfs_lookup_child(path_part, dir_clust, &dir_ent) != JGFS_OK) {
 			free(path_dup);
-			return -ENOENT;
+			return JGFS_NODENT;
 		}
 		
 		/* if we're still getting to the child, make sure we don't try to
 		 * recurse into a non-directory */
 		if (path_next != NULL) {
 			if (dir_ent->type != TYPE_DIR) {
-				return -ENOTDIR;
+				return JGFS_FILEINPATH;
 			}
 			
 			dir_clust = jgfs_get_clust(dir_ent->begin);
@@ -303,7 +303,7 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	}
 	
 	free(path_dup);
-	return 0;
+	return JGFS_OK;
 }
 
 uint32_t jgfs_dir_count(struct jgfs_dir_clust *parent) {
@@ -331,7 +331,7 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 		}
 	}
 	
-	return 0;
+	return JGFS_OK;
 }
 
 int jgfs_create_ent(struct jgfs_dir_clust *parent,
@@ -341,8 +341,8 @@ int jgfs_create_ent(struct jgfs_dir_clust *parent,
 	}
 	
 	struct jgfs_dir_ent *extant_ent;
-	if (jgfs_lookup_child(new_ent->name, parent, &extant_ent) == 0) {
-		return -EEXIST;
+	if (jgfs_lookup_child(new_ent->name, parent, &extant_ent) == JGFS_OK) {
+		return JGFS_DUPLICATE;
 	}
 	
 	struct jgfs_dir_ent *empty_ent;
@@ -354,7 +354,7 @@ int jgfs_create_ent(struct jgfs_dir_clust *parent,
 		}
 	}
 	
-	return -ENOSPC;
+	return JGFS_DIRFULL;
 	
 found:
 	memcpy(empty_ent, new_ent, sizeof(*empty_ent));
@@ -363,12 +363,12 @@ found:
 		*created_ent = empty_ent;
 	}
 	
-	return 0;
+	return JGFS_OK;
 }
 
 int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 	if (strlen(name) > JGFS_NAME_LIMIT) {
-		return -ENAMETOOLONG;
+		return JGFS_NAMETOOLONG;
 	}
 	
 	struct jgfs_dir_ent new_ent;
@@ -385,14 +385,14 @@ int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name) {
 
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	if (strlen(name) > JGFS_NAME_LIMIT) {
-		return -ENAMETOOLONG;
+		return JGFS_NAMETOOLONG;
 	}
 	
 	fat_ent_t dest_addr;
 	/* make sure a free cluster exists before we bother adding a dir ent to the
 	 * parent directory */
 	if (!jgfs_fat_find(FAT_FREE, &dest_addr)) {
-		return -ENOSPC;
+		return JGFS_NOFREECLUST;
 	}
 	
 	struct jgfs_dir_ent new_ent, *created_ent;
@@ -405,7 +405,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	new_ent.begin = FAT_NALLOC;
 	
 	int rtn;
-	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
+	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != JGFS_OK) {
 		return rtn;
 	}
 	
@@ -416,21 +416,21 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	
 	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
 	
-	return 0;
+	return JGFS_OK;
 }
 
 int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	const char *target) {
 	if (strlen(name) > JGFS_NAME_LIMIT ||
 		strlen(target) > jgfs_clust_size() - 1) {
-		return -ENAMETOOLONG;
+		return JGFS_NAMETOOLONG;
 	}
 	
 	fat_ent_t dest_addr;
 	/* make sure a free cluster exists before we bother adding a dir ent to the
 	 * parent directory */
 	if (!jgfs_fat_find(FAT_FREE, &dest_addr)) {
-		return -ENOSPC;
+		return JGFS_NOFREECLUST;
 	}
 	
 	struct jgfs_dir_ent new_ent, *created_ent;
@@ -443,7 +443,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	new_ent.begin = FAT_NALLOC;
 	
 	int rtn;
-	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
+	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != JGFS_OK) {
 		return rtn;
 	}
 	
@@ -454,7 +454,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	
 	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
 	
-	return 0;
+	return JGFS_OK;
 }
 
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
@@ -464,7 +464,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 		if (child->type == TYPE_DIR) {
 			struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
 			if (jgfs_dir_count(dir_clust) != 0) {
-				return -ENOTEMPTY;
+				return JGFS_NOTEMPTY;
 			}
 			
 			/* deallocate the directory cluster */
@@ -480,14 +480,14 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 	/* erase this dir ent from the parent dir cluster */
 	memset(child, 0, sizeof(*child));
 	
-	return 0;
+	return JGFS_OK;
 }
 
 int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 	struct jgfs_dir_clust *new_parent) {
 	struct jgfs_dir_ent *extant_ent, *new_ent;
 	int rtn = jgfs_lookup_child(dir_ent->name, new_parent, &extant_ent);
-	if (rtn == 0) {
+	if (rtn == JGFS_OK) {
 		if (dir_ent->type == TYPE_DIR) {
 			/* only succeed if the target is also a dir and is empty */
 			if (extant_ent->type == TYPE_DIR) {
@@ -497,21 +497,21 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 					jgfs_delete_ent(new_parent, extant_ent, true);
 					new_ent = extant_ent;
 				} else {
-					return -ENOTEMPTY;
+					return JGFS_NOTEMPTY;
 				}
 			} else {
-				return -EEXIST;
+				return JGFS_NOOVERWRITE;
 			}
 		} else {
 			/* can't overwrite a dir with a file */
 			if (extant_ent->type == TYPE_DIR) {
-				return -EISDIR;
+				return JGFS_NOOVERWRITE;
 			}
 			
 			/* overwrite existing files */
 			new_ent = extant_ent;
 		}
-	} else if (rtn == -ENOENT) {
+	} else if (rtn == JGFS_NODENT) {
 		if ((rtn = jgfs_create_ent(new_parent, dir_ent, &new_ent)) != 0) {
 			return rtn;
 		}
@@ -525,7 +525,7 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 	/* clear out the old dir ent */
 	memset(dir_ent, 0, sizeof(*dir_ent));
 	
-	return 0;
+	return JGFS_OK;
 }
 
 void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {

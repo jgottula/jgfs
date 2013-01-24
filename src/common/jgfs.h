@@ -186,6 +186,9 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
  * requested; return posix error code on failure */
 int jgfs_delete_ent(struct jgfs_dir_ent *dir_ent, bool dealloc);
 
+/* count the clusters taken up by a file or directory */
+uint16_t jgfs_block_count(struct jgfs_dir_ent *dir_ent);
+
 /* reduce the size of a file */
 void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 /* increase the size of a file; returns false on insufficient space */

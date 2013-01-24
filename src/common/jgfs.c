@@ -542,6 +542,23 @@ int jgfs_delete_ent(struct jgfs_dir_ent *dir_ent, bool dealloc) {
 	return 0;
 }
 
+uint16_t jgfs_block_count(struct jgfs_dir_ent *dir_ent) {
+	fat_ent_t data_addr = dir_ent->begin;
+	
+	if (dir_ent->size != 0) {
+		uint32_t count = 0;
+		
+		while (data_addr != FAT_EOF) {
+			data_addr = jgfs_fat_read(data_addr);
+			++count;
+		}
+		
+		return count;
+	} else {
+		return 0;
+	}
+}
+
 void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	if (new_size >= dir_ent->size) {
 		errx(1, "jgfs_reduce: new_size is not smaller");

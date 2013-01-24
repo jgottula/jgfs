@@ -457,14 +457,8 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	return 0;
 }
 
-int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
+int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 	bool dealloc) {
-	struct jgfs_dir_ent *child;
-	int rtn;
-	if ((rtn = jgfs_lookup_child(name, parent, &child)) != 0) {
-		return rtn;
-	}
-	
 	if (dealloc) {
 		/* check for directory emptiness, if appropriate */
 		if (child->type == TYPE_DIR) {
@@ -477,9 +471,8 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 			*(jgfs_fat_get(child->begin)) = FAT_FREE;
 		} else {
 			/* deallocate all the clusters associated with the dir ent */
-			if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
-				errno = rtn;
-				err(1, "jgfs_delete_ent: jgfs_reduce failed");
+			if (child->size != 0) {
+				jgfs_reduce(child, 0);
 			}
 		}
 	}
@@ -501,7 +494,7 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 				struct jgfs_dir_clust *extant_dir =
 					jgfs_get_clust(extant_ent->begin);
 				if (jgfs_dir_count(extant_dir) == 0) {
-					jgfs_delete_ent(new_parent, extant_ent->name, true);
+					jgfs_delete_ent(new_parent, extant_ent, true);
 					new_ent = extant_ent;
 				} else {
 					return -ENOTEMPTY;

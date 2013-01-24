@@ -166,7 +166,7 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 
 /* count the number of dir ents in the given directory */
-uint32_t jgfs_dir_count_ents(struct jgfs_dir_clust *parent);
+uint32_t jgfs_dir_count(struct jgfs_dir_clust *parent);
 
 /* call func once for each dir ent in parent with the dir ent and the
  * user-provided pointer as arguments; if func returns nonzero, the foreach

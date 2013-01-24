@@ -306,7 +306,7 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	return 0;
 }
 
-uint32_t jgfs_dir_count_ents(struct jgfs_dir_clust *parent) {
+uint32_t jgfs_dir_count(struct jgfs_dir_clust *parent) {
 	uint32_t count = 0;
 	
 	for (struct jgfs_dir_ent *this_ent = parent->entries;
@@ -469,7 +469,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 		/* check for directory emptiness, if appropriate */
 		if (child->type == TYPE_DIR) {
 			struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
-			if (jgfs_dir_count_ents(dir_clust) != 0) {
+			if (jgfs_dir_count(dir_clust) != 0) {
 				return -ENOTEMPTY;
 			}
 			
@@ -500,7 +500,7 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 			if (extant_ent->type == TYPE_DIR) {
 				struct jgfs_dir_clust *extant_dir =
 					jgfs_get_clust(extant_ent->begin);
-				if (jgfs_dir_count_ents(extant_dir) == 0) {
+				if (jgfs_dir_count(extant_dir) == 0) {
 					jgfs_delete_ent(new_parent, extant_ent->name, true);
 					new_ent = extant_ent;
 				} else {

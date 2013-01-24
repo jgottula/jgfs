@@ -366,6 +366,8 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 		size      -= size_this_cluster;
 		file_size -= size_this_cluster;
 		
+		offset     = 0;
+		
 		/* next cluster */
 		data_addr = jgfs_fat_get(*data_addr);
 	}
@@ -425,6 +427,8 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 		
 		size      -= size_this_cluster;
 		file_size -= size_this_cluster;
+		
+		offset     = 0;
 		
 		/* next cluster */
 		data_addr = jgfs_fat_get(*data_addr);

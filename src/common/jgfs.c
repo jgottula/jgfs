@@ -645,6 +645,7 @@ void jgfs_zero_span(struct jgfs_dir_ent *dir_ent, uint32_t off, uint32_t size) {
 		memset((char *)data_clust + off, 0, size_this_cluster);
 		
 		size -= size_this_cluster;
+		off   = 0;
 		
 		/* next cluster */
 		zero_addr = jgfs_fat_get(*zero_addr);

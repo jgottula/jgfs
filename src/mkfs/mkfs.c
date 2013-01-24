@@ -4,7 +4,7 @@
 
 #define MKFS_S_TOTAL 2880
 #define MKFS_S_RSVD  8
-#define MKFS_S_PER_C 1
+#define MKFS_S_PER_C 2
 
 
 int main(int argc, char **argv) {

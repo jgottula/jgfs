@@ -251,102 +251,26 @@ int jg_open(const char *path, struct fuse_file_info *fi) {
 }
 
 int jg_truncate(const char *path, off_t newsize) {
-	return -ENOSYS;
-#if 0
-	const char *path_last = strrchr(path, '/') + 1;
-	
-	struct jgfs_dir_entry parent_ent;
-	int rtn = lookup_parent(path, &parent_ent);
-	if (rtn != 0) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
 		return rtn;
 	}
 	
-	struct jgfs_dir_cluster parent_cluster;
-	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-	
-	struct jgfs_dir_entry *dir_ent = NULL;
-	
-	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
-		this_ent < parent_cluster.entries + 15; ++this_ent) {
-		if (strcmp(path_last, this_ent->name) == 0) {
-			dir_ent = this_ent;
-			break;
-		}
+	if (child->type != TYPE_FILE) {
+		return -EISDIR;
 	}
 	
-	if (dir_ent == NULL) {
-		return -ENOENT;
+	child->mtime = time(NULL);
+	
+	if (newsize < child->size) {
+		return jgfs_reduce(child, newsize);
+	} else if (newsize > child->size) {
+		return jgfs_enlarge(child, newsize);
+	} else {
+		return 0;
 	}
-	
-	bool nospc = false;
-	
-	if (newsize < dir_ent->size) {
-		uint16_t new_count = GET_BLOCKS(newsize), cluster_count = 0;
-		fat_ent_t data_addr = dir_ent->begin, old_value;
-		
-		do {
-			++cluster_count;
-			
-			old_value = read_fat(data_addr);
-			
-			if (cluster_count == new_count) {
-				write_fat(data_addr, FAT_EOF);
-			} else if (cluster_count > new_count) {
-				write_fat(data_addr, FAT_FREE);
-			}
-			
-			data_addr = old_value;
-			++cluster_count;
-		} while (old_value != FAT_EOF);
-		
-		if (newsize == 0) {
-			dir_ent->begin = 0;
-		}
-		
-		dir_ent->size = newsize;
-	} else if (newsize > dir_ent->size) {
-		uint16_t add_count = GETBLOCKS(newsize) - GETBLOCKS(dir_ent->size),
-			cluster_count = 0;
-		
-		/* allocate the first cluster if the file is empty */
-		if (dir_ent->size == 0) {
-			if (!find_free_cluster(&dir_ent->begin)) {
-				nospc = true;
-				goto bail;
-			}
-			
-			write_fat(dir_ent->begin, FAT_EOF);
-			--add_count;
-		}
-		
-		fat_ent_t data_addr = dir_ent->begin, old_value;
-		
-		while ()
-		
-		while (cluster_count < add_count) {
-			old_value = read_fat(data_addr);
-			
-			if ()
-			
-			
-			/* incr cluster_count */
-		}
-		
-		
-		/* TODO: specially handle case where size was zero */
-		
-		/* incrementally increment dir_ent->file_size until space runs out */
-		
-		/* if space runs out, set nospc to true and leave */
-	}
-	
-bail:
-	dir_ent->mtime = time(NULL);
-	
-	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-	
-	return (nospc ? -ENOSPC : 0);
-#endif
 }
 
 int jg_ftruncate(const char *path, off_t newsize, struct fuse_file_info *fi) {

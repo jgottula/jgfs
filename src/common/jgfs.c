@@ -258,7 +258,7 @@ void jgfs_fat_dump(void) {
 	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
 			if (j % 8 == 0) {
-				fprintf(stderr, "%04" PRIx16 ":", j + (i * JGFS_FENT_PER_S));
+				fprintf(stderr, "%04lx:", j + (i * JGFS_FENT_PER_S));
 			}
 			
 			fprintf(stderr, " %04" PRIx16, jgfs.fat[i].entries[j]);

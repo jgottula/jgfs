@@ -39,11 +39,9 @@ int jg_statfs(const char *path, struct statvfs *statv) {
 int jg_getattr(const char *path, struct stat *buf) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	buf->st_nlink = 1;
@@ -69,11 +67,9 @@ int jg_getattr(const char *path, struct stat *buf) {
 int jg_utimens(const char *path, const struct timespec tv[2]) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	child->mtime = tv[1].tv_sec;
@@ -84,11 +80,9 @@ int jg_utimens(const char *path, const struct timespec tv[2]) {
 int jg_chmod(const char *path, mode_t mode) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	return 0;
@@ -97,11 +91,9 @@ int jg_chmod(const char *path, mode_t mode) {
 int jg_chown(const char *path, uid_t uid, gid_t gid) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	return 0;
@@ -136,11 +128,9 @@ int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	if (child->type != TYPE_DIR) {
@@ -164,11 +154,9 @@ int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 int jg_readlink(const char *path, char *link, size_t size) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	memset(link, 0, size);
@@ -186,11 +174,9 @@ int jg_readlink(const char *path, char *link, size_t size) {
 
 int jg_mknod(const char *path, mode_t mode, dev_t dev) {
 	struct jgfs_dir_clust *parent;
-	switch (jgfs_lookup(path, &parent, NULL)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
 	}
 	
 	switch (mode & ~0777) {
@@ -207,25 +193,14 @@ int jg_mknod(const char *path, mode_t mode, dev_t dev) {
 		return -EINVAL;
 	}
 	
-	switch (jgfs_create_file(parent, path_last)) {
-	case JGFS_NAMETOOLONG:
-		return -ENAMETOOLONG;
-	case JGFS_DUPLICATE:
-		return -EEXIST;
-	case JGFS_DIRFULL:
-		return -ENOSPC;
-	}
-	
-	return 0;
+	return jgfs_create_file(parent, path_last);
 }
 
 int jg_mkdir(const char *path, mode_t mode) {
 	struct jgfs_dir_clust *parent;
-	switch (jgfs_lookup(path, &parent, NULL)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
 	}
 	
 	char *path_last = strrchr(path, '/') + 1;
@@ -234,67 +209,44 @@ int jg_mkdir(const char *path, mode_t mode) {
 		return -EINVAL;
 	}
 	
-	switch (jgfs_create_dir(parent, path_last)) {
-	case JGFS_NAMETOOLONG:
-		return -ENAMETOOLONG;
-	case JGFS_DUPLICATE:
-		return -EEXIST;
-	case JGFS_DIRFULL:
-	case JGFS_NOFREECLUST:
-		return -ENOSPC;
-	}
-	
-	return 0;
+	return jgfs_create_dir(parent, path_last);
 }
 
 int jg_unlink(const char *path) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	if (child->type == TYPE_DIR) {
 		return -EISDIR;
 	}
 	
-	jgfs_delete_ent(parent, child, true);
-	
-	return 0;
+	return jgfs_delete_ent(parent, child, true);
 }
 
 int jg_rmdir(const char *path) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	if (child->type != TYPE_DIR) {
 		return -ENOTDIR;
 	}
 	
-	switch (jgfs_delete_ent(parent, child, true)) {
-	case JGFS_NOTEMPTY:
-		return -ENOTEMPTY;
-	}
-	
-	return 0;
+	return jgfs_delete_ent(parent, child, true);
 }
 
 int jg_symlink(const char *target, const char *path) {
 	struct jgfs_dir_clust *parent;
-	switch (jgfs_lookup(path, &parent, NULL)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
 	}
 	
 	char *path_last = strrchr(path, '/') + 1;
@@ -303,17 +255,7 @@ int jg_symlink(const char *target, const char *path) {
 		return -EINVAL;
 	}
 	
-	switch (jgfs_create_symlink(parent, path_last, target)) {
-	case JGFS_NAMETOOLONG:
-		return -ENAMETOOLONG;
-	case JGFS_DUPLICATE:
-		return -EEXIST;
-	case JGFS_DIRFULL:
-	case JGFS_NOFREECLUST:
-		return -ENOSPC;
-	}
-	
-	return 0;
+	return jgfs_create_symlink(parent, path_last, target);
 }
 
 int jg_rename(const char *path, const char *newpath) {
@@ -327,31 +269,17 @@ int jg_rename(const char *path, const char *newpath) {
 	
 	struct jgfs_dir_clust *old_parent, *new_parent;
 	struct jgfs_dir_ent *dir_ent;
-	switch (jgfs_lookup(path, &old_parent, &dir_ent)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
-	}
-	switch (jgfs_lookup(newpath, &new_parent, NULL)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &old_parent, &dir_ent)) != 0 ||
+		(rtn = jgfs_lookup(newpath, &new_parent, NULL)) != 0) {
+		return rtn;
 	}
 	
 	/* rename the dir ent */
 	strlcpy(dir_ent->name, newpath_last, JGFS_NAME_LIMIT + 1);
 	
 	/* transplant it (even if it's the same directory) */
-	switch (jgfs_move_ent(dir_ent, new_parent)) {
-	case JGFS_NOTEMPTY:
-		return -ENOTEMPTY;
-	case JGFS_NOOVERWRITE:
-		return -EISDIR;
-	}
-	
-	return 0;
+	return jgfs_move_ent(dir_ent, new_parent);
 }
 
 int jg_open(const char *path, struct fuse_file_info *fi) {
@@ -361,11 +289,9 @@ int jg_open(const char *path, struct fuse_file_info *fi) {
 int jg_truncate(const char *path, off_t newsize) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	if (child->type != TYPE_FILE) {
@@ -394,11 +320,9 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	memset(buf, 0, size);
@@ -459,11 +383,9 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
-	switch (jgfs_lookup(path, &parent, &child)) {
-	case JGFS_NODENT:
-		return -ENOENT;
-	case JGFS_FILEINPATH:
-		return -ENOTDIR;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
 	}
 	
 	child->mtime = time(NULL);

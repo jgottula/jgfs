@@ -153,7 +153,7 @@ bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest);
 uint16_t jgfs_fat_count(fat_ent_t target);
 
 /* initialize (zero out) a dir cluster with no entries */
-void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust);
+void jgfs_dir_init(struct jgfs_dir_clust *dir_clust);
 
 /* find child with child_name in parent; return posix error code on failure */
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,

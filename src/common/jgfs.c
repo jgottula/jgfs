@@ -157,7 +157,7 @@ void jgfs_new(const char *dev_path,
 	
 	/* initialize the root directory cluster */
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
-	jgfs_init_dir_clust(root_dir_clust);
+	jgfs_dir_init(root_dir_clust);
 	
 	*(jgfs_fat_get(FAT_ROOT)) = FAT_EOF;
 }
@@ -239,7 +239,7 @@ uint16_t jgfs_fat_count(fat_ent_t target) {
 	return count;
 }
 
-void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust) {
+void jgfs_dir_init(struct jgfs_dir_clust *dir_clust) {
 	memset(dir_clust, 0, jgfs_clust_size());
 }
 
@@ -412,7 +412,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	created_ent->begin = dest_addr;
 	
 	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(dest_addr);
-	jgfs_init_dir_clust(dir_clust);
+	jgfs_dir_init(dir_clust);
 	
 	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
 	

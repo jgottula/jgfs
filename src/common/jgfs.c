@@ -204,7 +204,7 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_get: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
-	} else if (addr > clusters_total) {
+	} else if (addr >= clusters_total) {
 		errx(1, "jgfs_fat_get: tried to access past clusters_total "
 			"(fat %#06" PRIx16 ")", addr);
 	}

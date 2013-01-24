@@ -315,36 +315,33 @@ int jg_ftruncate(const char *path, off_t newsize, struct fuse_file_info *fi) {
 
 int jg_read(const char *path, char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
-	return -ENOSYS;
-#if 0
-	fat_ent_t data_addr;
-	int b_read = 0;
-	
-	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_path(path, &dir_ent);
-	if (rtn != 0) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
 		return rtn;
 	}
 	
-	uint32_t file_size = dir_ent.size;
-	
 	memset(buf, 0, size);
 	
-	/* EOF */
+	uint32_t file_size = child->size;
+	int b_read = 0;
+	
+	/* immediate EOF check */
 	if (file_size <= offset) {
 		return 0;
 	}
 	
 	/* skip to the first cluster requested */
-	data_addr = dir_ent.begin;
-	while (offset >= 512) {
-		data_addr  = read_fat(data_addr);
-		offset    -= 512;
-		file_size -= 512;
+	fat_ent_t data_addr = child->begin;
+	while (offset >= jgfs_clust_size()) {
+		data_addr  = jgfs_fat_read(data_addr);
+		offset    -= jgfs_clust_size();
+		file_size -= jgfs_clust_size();
 	}
 	
 	while (size > 0 && file_size > 0) {
-		uint16_t size_this_cluster;
+		uint32_t size_this_cluster;
 		
 		if (size < file_size) {
 			size_this_cluster = size;
@@ -352,13 +349,13 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 			size_this_cluster = file_size;
 		}
 		
-		if (size_this_cluster > (512 - offset)) {
-			size_this_cluster = (512 - offset);
+		/* read to the end of this cluster on this iteration */
+		if (size_this_cluster > (jgfs_clust_size() - offset)) {
+			size_this_cluster = (jgfs_clust_size() - offset);
 		}
 		
-		uint8_t data_buf[512];
-		read_sector(CLUSTER(data_addr), data_buf);
-		memcpy(buf, data_buf + offset, size_this_cluster);
+		struct clust *data_clust = jgfs_get_clust(data_addr);
+		memcpy(buf, (char *)data_clust + offset, size_this_cluster);
 		
 		buf       += size_this_cluster;
 		b_read    += size_this_cluster;
@@ -367,11 +364,10 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 		file_size -= size_this_cluster;
 		
 		/* next cluster */
-		data_addr = read_fat(data_addr);
+		data_addr = jgfs_fat_read(data_addr);
 	}
 	
 	return b_read;
-#endif
 }
 
 /* check for cases: (using 2K file)

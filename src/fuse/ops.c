@@ -238,94 +238,31 @@ int jg_symlink(const char *target, const char *path) {
 }
 
 int jg_rename(const char *path, const char *newpath) {
-	struct jgfs_dir_clust *parent;
-	struct jgfs_dir_ent   *child;
-	int rtn;
-	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
-		return rtn;
-	}
-	
 	char *newpath_last = strrchr(newpath, '/') + 1;
 	if (newpath_last == NULL || newpath_last[0] == '\0') {
 		/* most applicable errno */
 		return -EINVAL;
-	}
-	
-	
-	
-	return -ENOSYS;
-#if 0
-	const char *path_last = strrchr(path, '/') + 1;
-	const char *newpath_last = strrchr(newpath, '/') + 1;
-	
-	if (strlen(newpath_last) > 19) {
+	} else if (strlen(newpath_last) > JGFS_NAME_LIMIT) {
 		return -ENAMETOOLONG;
 	}
 	
-	struct jgfs_dir_entry parent_ent;
-	int rtn = lookup_parent(path, &parent_ent);
-	if (rtn != 0) {
+	struct jgfs_dir_clust *old_parent, *new_parent;
+	struct jgfs_dir_ent *dir_ent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &old_parent, &dir_ent)) != 0 ||
+		(rtn = jgfs_lookup(newpath, &new_parent, NULL)) != 0) {
 		return rtn;
 	}
 	
-	struct jgfs_dir_entry new_parent_ent;
-	if ((rtn = lookup_parent(newpath, &new_parent_ent)) != 0) {
+	/* rename the dir ent */
+	strlcpy(dir_ent->name, newpath_last, JGFS_NAME_LIMIT + 1);
+	
+	/* transplant it (even if it's the same directory) */
+	if ((rtn = jgfs_move_ent(dir_ent, new_parent)) != 0) {
 		return rtn;
 	}
-	
-	struct jgfs_dir_cluster parent_cluster;
-	read_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-	
-	struct jgfs_dir_entry *old_ent = NULL;
-	
-	/* find the old dir_ent */
-	for (struct jgfs_dir_entry *this_ent = parent_cluster.entries;
-		this_ent < parent_cluster.entries + 15; ++this_ent) {
-		if (strcmp(path_last, this_ent->name) == 0) {
-			old_ent = this_ent;
-			break;
-		}
-	}
-	
-	if (old_ent == NULL) {
-		return -ENOENT;
-	}
-	
-	/* simple rename: src and dest dirs are the same */
-	if (parent_ent.begin == new_parent_ent.begin) {
-		strcpy(old_ent->name, newpath_last);
-		write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-		
-		return 0;
-	}
-	
-	struct jgfs_dir_cluster new_parent_cluster;
-	read_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
-	
-	struct jgfs_dir_entry *new_ent = NULL;
-	
-	/* find an empty directory entry, and check for entry with same name */
-	for (struct jgfs_dir_entry *this_ent = new_parent_cluster.entries;
-		this_ent < new_parent_cluster.entries + 15; ++this_ent) {
-		if (this_ent->name[0] == '\0') {
-			new_ent = this_ent;
-		} else if (strcmp(path_last, this_ent->name) == 0) {
-			return -EEXIST;
-		}
-	}
-	
-	if (new_ent == NULL) {
-		return -ENOSPC;
-	}
-	
-	*new_ent = *old_ent;
-	memset(old_ent, 0, sizeof(*old_ent));
-	
-	write_sector(CLUSTER(parent_ent.begin), &parent_cluster);
-	write_sector(CLUSTER(new_parent_ent.begin), &new_parent_cluster);
 	
 	return 0;
-#endif
 }
 
 int jg_open(const char *path, struct fuse_file_info *fi) {

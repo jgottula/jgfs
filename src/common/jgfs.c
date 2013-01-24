@@ -576,7 +576,7 @@ bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	
 	/* special case for zero-size files */
 	if (dir_ent->size == 0) {
-		if (jgfs_fat_find(FAT_ROOT, &new_addr)) {
+		if (jgfs_fat_find(FAT_FREE, &new_addr)) {
 			dir_ent->begin = new_addr;
 			*(jgfs_fat_get(new_addr)) = FAT_EOF;
 			

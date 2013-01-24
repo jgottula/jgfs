@@ -211,11 +211,11 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	return &(jgfs.fat[fat_sect].entries[fat_idx]);
 }
 
-bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest) {
+bool jgfs_fat_find(fat_ent_t target, fat_ent_t *first) {
 	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
 			if (jgfs.fat[i].entries[j] == target) {
-				*dest = (i * JGFS_FENT_PER_S) + j;
+				*first = (i * JGFS_FENT_PER_S) + j;
 				return true;
 			}
 		}

@@ -197,6 +197,10 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 	bool dealloc);
 
+/* transplant dir_ent from its current parent to new_parent */
+int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
+	struct jgfs_dir_clust *new_parent);
+
 /* deallocate unused clusters from a directory */
 void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust);
 

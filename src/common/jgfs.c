@@ -505,6 +505,51 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 	return 0;
 }
 
+int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
+	struct jgfs_dir_clust *new_parent) {
+	struct jgfs_dir_ent *extant_ent, *new_ent;
+	int rtn = jgfs_lookup_child(dir_ent->name, new_parent, &extant_ent);
+	if (rtn == 0) {
+		if (dir_ent->type == TYPE_DIR) {
+			/* only succeed if the target is also a dir and is empty */
+			if (extant_ent->type == TYPE_DIR) {
+				struct jgfs_dir_clust *extant_dir =
+					jgfs_get_clust(extant_ent->begin);
+				if (jgfs_dir_count_ents(extant_dir) == 0) {
+					jgfs_delete_ent(new_parent, extant_ent->name, true);
+					new_ent = extant_ent;
+				} else {
+					return -ENOTEMPTY;
+				}
+			} else {
+				return -EEXIST;
+			}
+		} else {
+			/* can't overwrite a dir with a file */
+			if (extant_ent->type == TYPE_DIR) {
+				return -EISDIR;
+			}
+			
+			/* overwrite existing files */
+			new_ent = extant_ent;
+		}
+	} else if (rtn == -ENOENT) {
+		if ((rtn = jgfs_create_ent(new_parent, dir_ent, &new_ent)) != 0) {
+			return rtn;
+		}
+	} else {
+		return rtn;
+	}
+	
+	/* copy the dir ent */
+	memcpy(new_ent, dir_ent, sizeof(*new_ent));
+	
+	/* clear out the old dir ent */
+	memset(dir_ent, 0, sizeof(*dir_ent));
+	
+	return 0;
+}
+
 int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	if (new_size >= dir_ent->size) {
 		errx(1, "jgfs_reduce: new_size is not smaller");

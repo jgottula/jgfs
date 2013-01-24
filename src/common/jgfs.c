@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -236,6 +237,22 @@ uint16_t jgfs_fat_count(fat_ent_t target) {
 	}
 	
 	return count;
+}
+
+void jgfs_fat_dump(void) {
+	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
+		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
+			if (j % 8 == 0) {
+				fprintf(stderr, "%04" PRIx16 ":", j + (i * JGFS_FENT_PER_S));
+			}
+			
+			fprintf(stderr, " %04" PRIx16, jgfs.fat[i].entries[j]);
+			
+			if (j % 8 == 7) {
+				fputc('\n', stderr);
+			}
+		}
+	}
 }
 
 int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,

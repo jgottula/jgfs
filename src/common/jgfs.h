@@ -144,6 +144,8 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr);
 bool jgfs_fat_find(fat_ent_t target, fat_ent_t *first);
 /* count fat entries with the target value (use FAT_FREE for free blocks) */
 uint16_t jgfs_fat_count(fat_ent_t target);
+/* dump the entire fat to stderr */
+void jgfs_fat_dump(void);
 
 /* find dir clust corresponding to the second-to-last path component, plus the
  * dir ent corresponding to the last component (or NULL for just the parent);

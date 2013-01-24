@@ -565,13 +565,15 @@ void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 }
 
 bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
+	uint32_t clust_size = jgfs_clust_size();
+	
 	if (new_size <= dir_ent->size) {
 		errx(1, "jgfs_enlarge: new_size is not larger");
 	}
 	
 	bool nospc = false;
-	uint16_t clust_before = CEIL(dir_ent->size, jgfs_clust_size()),
-		clust_after = CEIL(new_size, jgfs_clust_size());
+	uint16_t clust_before = CEIL(dir_ent->size, clust_size),
+		clust_after = CEIL(new_size, clust_size);
 	fat_ent_t new_addr;
 	
 	/* special case for zero-size files */
@@ -610,17 +612,17 @@ bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	}
 	
 	fat_ent_t *data_addr = &dir_ent->begin;
-	for (uint32_t i = 0; i < clust_after * jgfs_clust_size();
-		i += jgfs_clust_size()) {
-		if (dir_ent->size < i + jgfs_clust_size()) {
+	for (uint32_t i = 0; i < clust_after * clust_size; i += clust_size) {
+		if (dir_ent->size < i + clust_size) {
 			struct clust *data_clust = jgfs_get_clust(*data_addr);
 			
 			if (dir_ent->size > i) {
 				/* partial zero fill */
-				memset(data_clust, 0, dir_ent->size % jgfs_clust_size());
+				memset(data_clust, dir_ent->size % clust_size,
+					clust_size - (dir_ent->size % clust_size));
 			} else {
 				/* full zero fill */
-				memset(data_clust, 0, jgfs_clust_size());
+				memset(data_clust, 0, clust_size);
 			}
 		}
 		

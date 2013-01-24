@@ -373,14 +373,10 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 	return b_read;
 }
 
-/* check for cases: (using 2K file)
- * append 512 @ 2048
- * overwrite 512 @ 1024
- * overwrite/append 1024 @ 1536
- * append 512 @ 3072
- */
 int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
+	uint32_t clust_size = jgfs_clust_size();
+	
 	struct jgfs_dir_clust *parent;
 	struct jgfs_dir_ent   *child;
 	int rtn;
@@ -401,10 +397,10 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	
 	/* skip to the first cluster requested */
 	fat_ent_t *data_addr = &child->begin;
-	while (offset >= jgfs_clust_size()) {
+	while (offset >= clust_size) {
 		data_addr  = jgfs_fat_get(*data_addr);
-		offset    -= jgfs_clust_size();
-		file_size -= jgfs_clust_size();
+		offset    -= clust_size;
+		file_size -= clust_size;
 	}
 	
 	while (size > 0 && file_size > 0) {
@@ -417,8 +413,8 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 		}
 		
 		/* write to the end of this cluster on this iteration */
-		if (size_this_cluster > (jgfs_clust_size() - offset)) {
-			size_this_cluster = (jgfs_clust_size() - offset);
+		if (size_this_cluster > (clust_size - offset)) {
+			size_this_cluster = (clust_size - offset);
 		}
 		
 		struct clust *data_clust = jgfs_get_clust(*data_addr);

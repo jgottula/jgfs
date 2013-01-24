@@ -189,6 +189,9 @@ void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 /* increase the size of a file; returns false on insufficient space */
 bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 
+/* fill a span of the given dir ent's data clusters with zeroes */
+void jgfs_zero_span(struct jgfs_dir_ent *dir_ent, uint32_t off, uint32_t size);
+
 
 extern struct jgfs jgfs;
 

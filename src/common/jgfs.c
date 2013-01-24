@@ -159,7 +159,7 @@ void jgfs_new(const char *dev_path,
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
 	jgfs_dir_init(root_dir_clust);
 	
-	*(jgfs_fat_get(FAT_ROOT)) = FAT_EOF;
+	jgfs_fat_write(FAT_ROOT, FAT_EOF);
 }
 
 void jgfs_done(void) {
@@ -197,19 +197,34 @@ void *jgfs_get_clust(fat_ent_t clust_num) {
 		(clust_num * jgfs.hdr->s_per_c));
 }
 
-fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
+fat_ent_t jgfs_fat_read(fat_ent_t addr) {
 	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
 	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
 	
 	if (fat_sect >= jgfs.hdr->s_fat) {
-		errx(1, "jgfs_fat_get: tried to access past s_fat "
+		errx(1, "jgfs_fat_read: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
 	} else if (addr >= fs_clusters) {
-		errx(1, "jgfs_fat_get: tried to access non-real entry "
+		errx(1, "jgfs_fat_read: tried to access non-real entry "
 			"(fat %#06" PRIx16 ")", addr);
 	}
 	
-	return &(jgfs.fat[fat_sect].entries[fat_idx]);
+	return jgfs.fat[fat_sect].entries[fat_idx];
+}
+
+void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
+	
+	if (fat_sect >= jgfs.hdr->s_fat) {
+		errx(1, "jgfs_fat_write: tried to access past s_fat "
+			"(fat %#06" PRIx16 ")", addr);
+	} else if (addr >= fs_clusters) {
+		errx(1, "jgfs_fat_write: tried to access non-real entry "
+			"(fat %#06" PRIx16 ")", addr);
+	}
+	
+	jgfs.fat[fat_sect].entries[fat_idx] = val;
 }
 
 bool jgfs_fat_find(fat_ent_t target, fat_ent_t *first) {
@@ -429,7 +444,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(dest_addr);
 	jgfs_dir_init(dir_clust);
 	
-	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
+	jgfs_fat_write(dest_addr, FAT_EOF);
 	
 	return 0;
 }
@@ -467,7 +482,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	char *symlink_clust = jgfs_get_clust(dest_addr);
 	strlcpy(symlink_clust, target, jgfs_clust_size());
 	
-	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
+	jgfs_fat_write(dest_addr, FAT_EOF);
 	
 	return 0;
 }
@@ -527,7 +542,7 @@ int jgfs_delete_ent(struct jgfs_dir_ent *dir_ent, bool dealloc) {
 			}
 			
 			/* deallocate the directory cluster */
-			*(jgfs_fat_get(dir_ent->begin)) = FAT_FREE;
+			jgfs_fat_write(dir_ent->begin, FAT_FREE);
 		} else {
 			/* deallocate all the clusters associated with the dir ent */
 			if (dir_ent->size != 0) {

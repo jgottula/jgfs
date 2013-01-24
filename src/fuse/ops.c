@@ -336,9 +336,9 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 	}
 	
 	/* skip to the first cluster requested */
-	fat_ent_t *data_addr = &child->begin;
+	fat_ent_t data_addr = child->begin;
 	while (offset >= jgfs_clust_size()) {
-		data_addr  = jgfs_fat_get(*data_addr);
+		data_addr  = jgfs_fat_read(data_addr);
 		offset    -= jgfs_clust_size();
 		file_size -= jgfs_clust_size();
 	}
@@ -357,7 +357,7 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 			size_this_cluster = (jgfs_clust_size() - offset);
 		}
 		
-		struct clust *data_clust = jgfs_get_clust(*data_addr);
+		struct clust *data_clust = jgfs_get_clust(data_addr);
 		memcpy(buf, (char *)data_clust + offset, size_this_cluster);
 		
 		buf       += size_this_cluster;
@@ -369,7 +369,7 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 		offset     = 0;
 		
 		/* next cluster */
-		data_addr = jgfs_fat_get(*data_addr);
+		data_addr = jgfs_fat_read(data_addr);
 	}
 	
 	return b_read;
@@ -398,9 +398,9 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	int b_written = 0;
 	
 	/* skip to the first cluster requested */
-	fat_ent_t *data_addr = &child->begin;
+	fat_ent_t data_addr = child->begin;
 	while (offset >= clust_size) {
-		data_addr  = jgfs_fat_get(*data_addr);
+		data_addr  = jgfs_fat_read(data_addr);
 		offset    -= clust_size;
 		file_size -= clust_size;
 	}
@@ -419,7 +419,7 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 			size_this_cluster = (clust_size - offset);
 		}
 		
-		struct clust *data_clust = jgfs_get_clust(*data_addr);
+		struct clust *data_clust = jgfs_get_clust(data_addr);
 		memcpy((char *)data_clust + offset, buf, size_this_cluster);
 		
 		buf       += size_this_cluster;
@@ -431,7 +431,7 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 		offset     = 0;
 		
 		/* next cluster */
-		data_addr = jgfs_fat_get(*data_addr);
+		data_addr = jgfs_fat_read(data_addr);
 	}
 	
 	return b_written;

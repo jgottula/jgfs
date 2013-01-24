@@ -138,7 +138,7 @@ int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	}
 	
 	/* we want the child's dir clust, not the parent's */
-	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(child->begin);
+	struct jgfs_dir_clust *child_clust = jgfs_get_clust(child->begin);
 	
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
@@ -148,7 +148,7 @@ int jg_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		filler,
 	};
 	
-	return jgfs_dir_foreach(jg_readdir_filler, dir_clust, filler_info);
+	return jgfs_dir_foreach(jg_readdir_filler, child_clust, filler_info);
 }
 
 int jg_readlink(const char *path, char *link, size_t size) {
@@ -161,12 +161,12 @@ int jg_readlink(const char *path, char *link, size_t size) {
 	
 	memset(link, 0, size);
 	
-	struct clust *link_sect = jgfs_get_clust(child->begin);
+	struct clust *link_clust = jgfs_get_clust(child->begin);
 	
 	if (size < child->size) {
-		memcpy(link, link_sect, size);
+		memcpy(link, link_clust, size);
 	} else {
-		memcpy(link, link_sect, child->size);
+		memcpy(link, link_clust, child->size);
 	}
 	
 	return 0;
@@ -264,7 +264,7 @@ int jg_unlink(const char *path) {
 		return -EISDIR;
 	}
 	
-	return jgfs_delete_ent(parent, child, true);
+	return jgfs_delete_ent(child, true);
 }
 
 int jg_rmdir(const char *path) {
@@ -279,7 +279,7 @@ int jg_rmdir(const char *path) {
 		return -ENOTDIR;
 	}
 	
-	return jgfs_delete_ent(parent, child, true);
+	return jgfs_delete_ent(child, true);
 }
 
 int jg_open(const char *path, struct fuse_file_info *fi) {

@@ -117,20 +117,6 @@ _Static_assert(512 % sizeof(struct jgfs_dir_ent) == 0,
 	"jgfs_dir_ent must go evenly into 512 bytes");
 
 
-enum jgfs_rtn_val {
-	JGFS_OK          = 0, // successful
-	JGFS_NOFENT      = 1, // no such fat entry exists
-	JGFS_NODENT      = 2, // no such dir entry exists
-	JGFS_FILEINPATH  = 3, // non-last path part is not a dir
-	JGFS_DUPLICATE   = 4, // file with name already exists in this dir
-	JGFS_DIRFULL     = 5, // dir clust has no more dir ents
-	JGFS_NAMETOOLONG = 6, // given name is too long for a dir ent
-	JGFS_NOFREECLUST = 7, // no more free clusters
-	JGFS_NOTEMPTY    = 8, // dir is not empty
-	JGFS_NOOVERWRITE = 9, // can't overwrite target
-};
-
-
 typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
 
 
@@ -159,10 +145,9 @@ void *jgfs_get_clust(fat_ent_t clust_num);
 /* get a pointer to a fat entry */
 fat_ent_t *jgfs_fat_get(fat_ent_t addr);
 
-/* get the address of the first cluster with the target value in the fat
- * JGFS_OK     found
- * JGFS_NOFENT not found */
-int jgfs_fat_find(fat_ent_t target, fat_ent_t *dest);
+/* get the address of the first cluster with the target value in the fat, or
+ * return false on failure to find one */
+bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest);
 
 /* count fat entries with the target value (use FAT_FREE for free blocks) */
 uint16_t jgfs_fat_count(fat_ent_t target);
@@ -170,17 +155,13 @@ uint16_t jgfs_fat_count(fat_ent_t target);
 /* initialize (zero out) a dir cluster with no entries */
 void jgfs_dir_init(struct jgfs_dir_clust *dir_clust);
 
-/* find child with child_name in parent
- * JGFS_OK     found
- * JGFS_NODENT not found */
+/* find child with child_name in parent; return posix error code on failure */
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child);
 
 /* find dir clust corresponding to the second-to-last path component, plus the
- * dir ent corresponding to the last component (or NULL for just the parent)
- * JGFS_OK         found
- * JGFS_NODENT     component in the path (but not the last one) is not found
- * JGFS_FILEINPATH component in the path (but not the last one) is not a dir */
+ * dir ent corresponding to the last component (or NULL for just the parent);
+ * return posix error code on failure */
 int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
 
@@ -194,47 +175,27 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr);
 
 /* add new (valid) dir ent to parent and return a pointer to it as created_ent
- * (if not NULL)
- * JGFS_OK        success
- * JGFS_DUPLICATE same-named dir ent exists in the parent
- * JGFS_DIRFULL   the parent dir clust is full */
+ * (if not NULL); return posix error code on failure */
 int jgfs_create_ent(struct jgfs_dir_clust *parent,
 	const struct jgfs_dir_ent *new_ent, struct jgfs_dir_ent **created_ent);
 
-/* add new file called name to parent
- * JGFS_OK          success
- * JGFS_NAMETOOLONG name is too long
- * JGFS_DUPLICATE   same-named dir ent exists in the parent
- * JGFS_DIRFULL     the parent dir clust is full */
+/* add new file called name to parent; return posix error code on failure */
 int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name);
 
-/* add new dir called name to parent
- * JGFS_OK          success
- * JGFS_NAMETOOLONG name is too long
- * JGFS_DUPLICATE   same-named dir ent exists in the parent
- * JGFS_DIRFULL     the parent dir clust is full
- * JGFS_NOFREECLUST could not allocate a cluster for the dir */
+/* add new dir called name to parent; return posix error code on failure */
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name);
 
-/* add new symlink called name with target to parent
- * JGFS_OK          success
- * JGFS_NAMETOOLONG name is too long
- * JGFS_DUPLICATE   same-named dir ent exists in the parent
- * JGFS_DIRFULL     the parent dir clust is full
- * JGFS_NOFREECLUST could not allocate a cluster for the symlink */
+/* add new symlink called name with target to parent; return posix error code on
+ * failure */
 int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	const char *target);
 
-/* delete the given dir ent from parent, optionally deallocating its clusters
- * JGFS_OK       success
- * JGFS_NOTEMPTY tried to deallocate non-empty dir */
+/* delete the given dir ent from parent, deallocating the file or directory if
+ * requested; return posix error code on failure */
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 	bool dealloc);
 
-/* transplant dir_ent from its current parent to new_parent
- * JGFS_OK          success
- * JGFS_NOTEMPTY    tried to overwrite non-empty dir with dir
- * JGFS_NOOVERWRITE tried to overwrite file with dir or vice versa */
+/* transplant dir_ent from its current parent to new_parent */
 int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 	struct jgfs_dir_clust *new_parent);
 

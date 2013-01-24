@@ -122,52 +122,42 @@ typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
 
 /* load jgfs from the device at dev_path */
 void jgfs_init(const char *dev_path);
-
 /* make new jgfs on the device at dev_path with the given parameters */
 void jgfs_new(const char *dev_path,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
-
 /* sync and close the filesystem */
 void jgfs_done(void);
-
 /* sync the filesystem to disk */
 void jgfs_sync(void);
 
 /* get the cluster size (in bytes) of the loaded filesystem */
 uint32_t jgfs_clust_size(void);
-
 /* get a pointer to a sector */
 void *jgfs_get_sect(uint32_t sect_num);
-
 /* get a pointer to a cluster */
 void *jgfs_get_clust(fat_ent_t clust_num);
-
 /* get a pointer to a fat entry */
 fat_ent_t *jgfs_fat_get(fat_ent_t addr);
 
 /* get the address of the first cluster with the target value in the fat, or
  * return false on failure to find one */
 bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest);
-
 /* count fat entries with the target value (use FAT_FREE for free blocks) */
 uint16_t jgfs_fat_count(fat_ent_t target);
-
-/* initialize (zero out) a dir cluster with no entries */
-void jgfs_dir_init(struct jgfs_dir_clust *dir_clust);
-
-/* find child with child_name in parent; return posix error code on failure */
-int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
-	struct jgfs_dir_ent **child);
 
 /* find dir clust corresponding to the second-to-last path component, plus the
  * dir ent corresponding to the last component (or NULL for just the parent);
  * return posix error code on failure */
 int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 	struct jgfs_dir_ent **child);
+/* find child with child_name in parent; return posix error code on failure */
+int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
+	struct jgfs_dir_ent **child);
 
+/* initialize (zero out) a dir cluster with no entries */
+void jgfs_dir_init(struct jgfs_dir_clust *dir_clust);
 /* count the number of dir ents in the given directory */
 uint32_t jgfs_dir_count(struct jgfs_dir_clust *parent);
-
 /* call func once for each dir ent in parent with the dir ent and the
  * user-provided pointer as arguments; if func returns nonzero, the foreach
  * immediately terminates with the same return value */
@@ -178,30 +168,25 @@ int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
  * (if not NULL); return posix error code on failure */
 int jgfs_create_ent(struct jgfs_dir_clust *parent,
 	const struct jgfs_dir_ent *new_ent, struct jgfs_dir_ent **created_ent);
-
 /* add new file called name to parent; return posix error code on failure */
 int jgfs_create_file(struct jgfs_dir_clust *parent, const char *name);
-
 /* add new dir called name to parent; return posix error code on failure */
 int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name);
-
 /* add new symlink called name with target to parent; return posix error code on
  * failure */
 int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	const char *target);
 
+/* transplant dir_ent from its current parent to new_parent */
+int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
+	struct jgfs_dir_clust *new_parent);
 /* delete the given dir ent from parent, deallocating the file or directory if
  * requested; return posix error code on failure */
 int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 	bool dealloc);
 
-/* transplant dir_ent from its current parent to new_parent */
-int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
-	struct jgfs_dir_clust *new_parent);
-
 /* reduce the size of a file */
 void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
-
 /* increase the size of a file; returns false on insufficient space */
 bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 

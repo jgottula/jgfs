@@ -258,11 +258,7 @@ int jg_rename(const char *path, const char *newpath) {
 	strlcpy(dir_ent->name, newpath_last, JGFS_NAME_LIMIT + 1);
 	
 	/* transplant it (even if it's the same directory) */
-	if ((rtn = jgfs_move_ent(dir_ent, new_parent)) != 0) {
-		return rtn;
-	}
-	
-	return 0;
+	return jgfs_move_ent(dir_ent, new_parent);
 }
 
 int jg_open(const char *path, struct fuse_file_info *fi) {

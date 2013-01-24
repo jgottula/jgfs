@@ -113,8 +113,8 @@ _Static_assert(sizeof(struct jgfs_hdr) == 0x200,
 	"jgfs_hdr must be 512 bytes");
 _Static_assert(sizeof(struct jgfs_fat_sect) == 0x200,
 	"jgfs_fat_sect must be 512 bytes");
-_Static_assert(sizeof(struct jgfs_dir_ent) == 32,
-	"jgfs_dir_ent must be 32 bytes");
+_Static_assert(512 % sizeof(struct jgfs_dir_ent) == 0,
+	"jgfs_dir_ent must go evenly into 512 bytes");
 
 
 typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);

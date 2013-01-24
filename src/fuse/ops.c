@@ -29,7 +29,7 @@ int jg_statfs(const char *path, struct statvfs *statv) {
 	
 	statv->f_bsize = jgfs_clust_size();
 	statv->f_blocks = jgfs.hdr->s_total / jgfs.hdr->s_per_c;
-	statv->f_bfree = statv->f_bavail = jgfs_count_fat(FAT_FREE);
+	statv->f_bfree = statv->f_bavail = jgfs_fat_count(FAT_FREE);
 	
 	statv->f_namemax = JGFS_NAME_LIMIT;
 	
@@ -333,9 +333,9 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 	}
 	
 	/* skip to the first cluster requested */
-	fat_ent_t data_addr = child->begin;
+	fat_ent_t *data_addr = &child->begin;
 	while (offset >= jgfs_clust_size()) {
-		data_addr  = jgfs_fat_read(data_addr);
+		data_addr  = jgfs_fat_get(*data_addr);
 		offset    -= jgfs_clust_size();
 		file_size -= jgfs_clust_size();
 	}
@@ -354,7 +354,7 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 			size_this_cluster = (jgfs_clust_size() - offset);
 		}
 		
-		struct clust *data_clust = jgfs_get_clust(data_addr);
+		struct clust *data_clust = jgfs_get_clust(*data_addr);
 		memcpy(buf, (char *)data_clust + offset, size_this_cluster);
 		
 		buf       += size_this_cluster;
@@ -364,7 +364,7 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
 		file_size -= size_this_cluster;
 		
 		/* next cluster */
-		data_addr = jgfs_fat_read(data_addr);
+		data_addr = jgfs_fat_get(*data_addr);
 	}
 	
 	return b_read;
@@ -397,9 +397,9 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	int b_written = 0;
 	
 	/* skip to the first cluster requested */
-	fat_ent_t data_addr = child->begin;
+	fat_ent_t *data_addr = &child->begin;
 	while (offset >= jgfs_clust_size()) {
-		data_addr  = jgfs_fat_read(data_addr);
+		data_addr  = jgfs_fat_get(*data_addr);
 		offset    -= jgfs_clust_size();
 		file_size -= jgfs_clust_size();
 	}
@@ -418,7 +418,7 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 			size_this_cluster = (jgfs_clust_size() - offset);
 		}
 		
-		struct clust *data_clust = jgfs_get_clust(data_addr);
+		struct clust *data_clust = jgfs_get_clust(*data_addr);
 		memcpy((char *)data_clust + offset, buf, size_this_cluster);
 		
 		buf       += size_this_cluster;
@@ -428,7 +428,7 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 		file_size -= size_this_cluster;
 		
 		/* next cluster */
-		data_addr = jgfs_fat_read(data_addr);
+		data_addr = jgfs_fat_get(*data_addr);
 	}
 	
 	return b_written;

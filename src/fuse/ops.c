@@ -378,33 +378,60 @@ int jg_read(const char *path, char *buf, size_t size, off_t offset,
  */
 int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi) {
-	return -ENOSYS;
-#if 0
-	fat_ent_t data_addr;
-	int b_written = 0;
-	
-	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_path(path, &dir_ent);
-	if (rtn != 0) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
 		return rtn;
 	}
 	
-	uint32_t file_size = dir_ent.size;
+	child->mtime = time(NULL);
 	
-	/* if offset is greater than file_size, call jgfs_ftruncate first;
-	 * then, make sure and update the dir_ent and file_size! */
+	if (offset + size > child->size) {
+		if ((rtn = jgfs_enlarge(child, offset + size)) != 0) {
+			return rtn;
+		}
+	}
 	
+	uint32_t file_size = child->size;
+	int b_written = 0;
 	
+	/* skip to the first cluster requested */
+	fat_ent_t data_addr = child->begin;
+	while (offset >= jgfs_clust_size()) {
+		data_addr  = jgfs_fat_read(data_addr);
+		offset    -= jgfs_clust_size();
+		file_size -= jgfs_clust_size();
+	}
 	
-	
-	
-	/* specially handle case where filesize was zero */
-	
-	
-	/* be sure to update mtime with time(NULL), even for 0 bytes or ENOSPC */
+	while (size > 0 && file_size > 0) {
+		uint32_t size_this_cluster;
+		
+		if (size < file_size) {
+			size_this_cluster = size;
+		} else {
+			size_this_cluster = file_size;
+		}
+		
+		/* write to the end of this cluster on this iteration */
+		if (size_this_cluster > (jgfs_clust_size() - offset)) {
+			size_this_cluster = (jgfs_clust_size() - offset);
+		}
+		
+		struct clust *data_clust = jgfs_get_clust(data_addr);
+		memcpy((char *)data_clust + offset, buf, size_this_cluster);
+		
+		buf       += size_this_cluster;
+		b_written += size_this_cluster;
+		
+		size      -= size_this_cluster;
+		file_size -= size_this_cluster;
+		
+		/* next cluster */
+		data_addr = jgfs_fat_read(data_addr);
+	}
 	
 	return b_written;
-#endif
 }
 
 
@@ -441,4 +468,5 @@ struct fuse_operations jg_oper = {
 	.truncate  = jg_truncate,
 	
 	.read      = jg_read,
+	.write     = jg_write,
 };

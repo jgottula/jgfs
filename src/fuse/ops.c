@@ -203,7 +203,7 @@ int jg_unlink(const char *path) {
 		return -EISDIR;
 	}
 	
-	return jgfs_delete_ent(parent, child->name);
+	return jgfs_delete_ent(parent, child->name, true);
 }
 
 int jg_rmdir(const char *path) {
@@ -218,7 +218,7 @@ int jg_rmdir(const char *path) {
 		return -ENOTDIR;
 	}
 	
-	return jgfs_delete_ent(parent, child->name);
+	return jgfs_delete_ent(parent, child->name, true);
 }
 
 int jg_symlink(const char *target, const char *path) {

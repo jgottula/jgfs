@@ -301,12 +301,15 @@ int jg_truncate(const char *path, off_t newsize) {
 	child->mtime = time(NULL);
 	
 	if (newsize < child->size) {
-		return jgfs_reduce(child, newsize);
-	} else if (newsize > child->size) {
-		return jgfs_enlarge(child, newsize);
-	} else {
+		jgfs_reduce(child, newsize);
 		return 0;
+	} else if (newsize > child->size) {
+		if (!jgfs_enlarge(child, newsize)) {
+			return -ENOSPC;
+		}
 	}
+	
+	return 0;
 }
 
 int jg_ftruncate(const char *path, off_t newsize, struct fuse_file_info *fi) {

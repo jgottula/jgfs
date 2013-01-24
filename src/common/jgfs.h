@@ -203,10 +203,10 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust);
 
 /* reduce the size of a file */
-int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
+void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 
-/* increase the size of a file */
-int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
+/* increase the size of a file; returns false on insufficient space */
+bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 
 
 extern struct jgfs jgfs;

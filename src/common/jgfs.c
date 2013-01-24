@@ -528,7 +528,7 @@ int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 	return 0;
 }
 
-int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
+void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	if (new_size >= dir_ent->size) {
 		errx(1, "jgfs_reduce: new_size is not smaller");
 	}
@@ -565,11 +565,9 @@ int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	}
 	
 	dir_ent->size = new_size;
-	
-	return 0;
 }
 
-int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
+bool jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	if (new_size <= dir_ent->size) {
 		errx(1, "jgfs_enlarge: new_size is not larger");
 	}
@@ -587,7 +585,7 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 			
 			clust_before = 1;
 		} else {
-			return -ENOSPC;
+			return false;
 		}
 	}
 	
@@ -634,5 +632,5 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	
 	dir_ent->size = new_size;
 	
-	return (nospc ? -ENOSPC : 0);
+	return !nospc;
 }

@@ -142,20 +142,15 @@ void *jgfs_get_sect(uint32_t sect_num);
 /* get a pointer to a cluster */
 void *jgfs_get_clust(fat_ent_t clust_num);
 
-/* read an entry from the fat */
-fat_ent_t jgfs_fat_read(fat_ent_t addr);
-
-/* write an entry to the fat */
-void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
-
 /* get a pointer to a fat entry */
 fat_ent_t *jgfs_fat_get(fat_ent_t addr);
 
-/* get a free cluster address at or after start, or return false on failure */
-bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest);
+/* get the address of the first cluster with the target value in the fat, or
+ * return false on failure to find one */
+bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest);
 
 /* count fat entries with the target value (use FAT_FREE for free blocks) */
-uint16_t jgfs_count_fat(fat_ent_t target);
+uint16_t jgfs_fat_count(fat_ent_t target);
 
 /* initialize (zero out) a dir cluster with no entries */
 void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust);

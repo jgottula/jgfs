@@ -159,7 +159,7 @@ void jgfs_new(const char *dev_path,
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
 	jgfs_init_dir_clust(root_dir_clust);
 	
-	jgfs_fat_write(FAT_ROOT, FAT_EOF);
+	*(jgfs_fat_get(FAT_ROOT)) = FAT_EOF;
 }
 
 void jgfs_done(void) {
@@ -197,36 +197,6 @@ void *jgfs_get_clust(fat_ent_t clust_num) {
 		(clust_num * jgfs.hdr->s_per_c));
 }
 
-fat_ent_t jgfs_fat_read(fat_ent_t addr) {
-	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
-	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
-	
-	if (fat_sect >= jgfs.hdr->s_fat) {
-		errx(1, "jgfs_fat_read: tried to access past s_fat "
-			"(fat %#06" PRIx16 ")", addr);
-	} else if (addr > clusters_total) {
-		errx(1, "jgfs_fat_read: tried to access past clusters_total "
-			"(fat %#06" PRIx16 ")", addr);
-	}
-	
-	return jgfs.fat[fat_sect].entries[fat_idx];
-}
-
-void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
-	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
-	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
-	
-	if (fat_sect >= jgfs.hdr->s_fat) {
-		errx(1, "jgfs_fat_write: tried to access past s_fat "
-			"(fat %#06" PRIx16 ")", addr);
-	} else if (addr > clusters_total) {
-		errx(1, "jgfs_fat_write: tried to access past clusters_total "
-			"(fat %#06" PRIx16 ")", addr);
-	}
-	
-	jgfs.fat[fat_sect].entries[fat_idx] = val;
-}
-
 fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
 	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
@@ -242,10 +212,10 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	return &(jgfs.fat[fat_sect].entries[fat_idx]);
 }
 
-bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest) {
-	for (uint16_t i = start / JGFS_FENT_PER_S; i < jgfs.hdr->s_fat; ++i) {
-		for (uint16_t j = start % JGFS_FENT_PER_S; j < JGFS_FENT_PER_S; ++j) {
-			if (jgfs.fat[i].entries[j] == FAT_FREE) {
+bool jgfs_fat_find(fat_ent_t target, fat_ent_t *dest) {
+	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
+		for (uint16_t j = 0; j < JGFS_FENT_PER_S; ++j) {
+			if (jgfs.fat[i].entries[j] == target) {
 				*dest = (i * JGFS_FENT_PER_S) + j;
 				return true;
 			}
@@ -255,7 +225,7 @@ bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest) {
 	return false;
 }
 
-uint16_t jgfs_count_fat(fat_ent_t target) {
+uint16_t jgfs_fat_count(fat_ent_t target) {
 	uint16_t count = 0;
 	
 	for (uint16_t i = 0; i < jgfs.hdr->s_fat; ++i) {
@@ -421,7 +391,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	fat_ent_t dest_addr;
 	/* make sure a free cluster exists before we bother adding a dir ent to the
 	 * parent directory */
-	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+	if (!jgfs_fat_find(FAT_FREE, &dest_addr)) {
 		return -ENOSPC;
 	}
 	
@@ -444,7 +414,7 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(dest_addr);
 	jgfs_init_dir_clust(dir_clust);
 	
-	jgfs_fat_write(dest_addr, FAT_EOF);
+	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
 	
 	return 0;
 }
@@ -459,7 +429,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	fat_ent_t dest_addr;
 	/* make sure a free cluster exists before we bother adding a dir ent to the
 	 * parent directory */
-	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+	if (!jgfs_fat_find(FAT_FREE, &dest_addr)) {
 		return -ENOSPC;
 	}
 	
@@ -482,7 +452,7 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	char *symlink_clust = jgfs_get_clust(dest_addr);
 	strlcpy(symlink_clust, target, jgfs_clust_size());
 	
-	jgfs_fat_write(dest_addr, FAT_EOF);
+	*(jgfs_fat_get(dest_addr)) = FAT_EOF;
 	
 	return 0;
 }
@@ -504,7 +474,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 			}
 			
 			/* deallocate the directory cluster */
-			jgfs_fat_write(child->begin, FAT_FREE);
+			*(jgfs_fat_get(child->begin)) = FAT_FREE;
 		} else {
 			/* deallocate all the clusters associated with the dir ent */
 			if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
@@ -574,19 +544,19 @@ int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 		clust_after = CEIL(new_size, jgfs_clust_size());
 	
 	if (clust_before != clust_after) {
-		fat_ent_t this = dir_ent->begin, next;
+		fat_ent_t *this = &dir_ent->begin, *next;
 		
 		for (uint16_t i = 1; i <= clust_before; ++i) {
-			next = jgfs_fat_read(this);
+			next = jgfs_fat_get(*this);
 			
 			if (i == clust_after) {
-				jgfs_fat_write(this, FAT_EOF);
+				*this = FAT_EOF;
 			} else if (i > clust_after) {
-				jgfs_fat_write(this, FAT_FREE);
+				*this = FAT_FREE;
 			}
 			
 			/* this means the filesystem is inconsistent */
-			if (next == FAT_EOF && i < clust_before) {
+			if (*next == FAT_EOF && i < clust_before) {
 				warnx("jgfs_reduce: found premature FAT_EOF in clust chain");
 				break;
 			}
@@ -596,7 +566,7 @@ int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 		
 		/* special case for zero-size files */
 		if (clust_after == 0) {
-			jgfs_fat_write(dir_ent->begin, FAT_FREE);
+			*(jgfs_fat_get(dir_ent->begin)) = FAT_FREE;
 			dir_ent->begin = FAT_NALLOC;
 		}
 	}
@@ -618,9 +588,9 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 	
 	/* special case for zero-size files */
 	if (dir_ent->size == 0) {
-		if (jgfs_find_free_clust(FAT_ROOT, &new_addr)) {
+		if (jgfs_fat_find(FAT_ROOT, &new_addr)) {
 			dir_ent->begin = new_addr;
-			jgfs_fat_write(new_addr, FAT_EOF);
+			*(jgfs_fat_get(new_addr)) = FAT_EOF;
 			
 			clust_before = 1;
 		} else {
@@ -638,9 +608,9 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 		}
 		
 		if (i >= clust_before) {
-			if (jgfs_find_free_clust(FAT_ROOT, &new_addr)) {
+			if (jgfs_fat_find(FAT_FREE, &new_addr)) {
 				*prev = new_addr;
-				jgfs_fat_write(new_addr, FAT_EOF);
+				*(jgfs_fat_get(new_addr)) = FAT_EOF;
 			} else {
 				clust_after = i - 1;
 				nospc = true;
@@ -651,11 +621,11 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 		prev = jgfs_fat_get(*prev);
 	}
 	
-	fat_ent_t data_addr = dir_ent->begin;
+	fat_ent_t *data_addr = &dir_ent->begin;
 	for (uint32_t i = 0; i < clust_after * jgfs_clust_size();
 		i += jgfs_clust_size()) {
 		if (dir_ent->size < i + jgfs_clust_size()) {
-			struct clust *data_clust = jgfs_get_clust(data_addr);
+			struct clust *data_clust = jgfs_get_clust(*data_addr);
 			
 			if (dir_ent->size > i) {
 				/* partial zero fill */
@@ -666,7 +636,7 @@ int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 			}
 		}
 		
-		data_addr = jgfs_fat_read(data_addr);
+		data_addr = jgfs_fat_get(*data_addr);
 	}
 	
 	dir_ent->size = new_size;

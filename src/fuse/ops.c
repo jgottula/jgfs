@@ -77,6 +77,20 @@ int jg_utimens(const char *path, const struct timespec tv[2]) {
 	return 0;
 }
 
+int jg_fsync(const char *path, int datasync, struct fuse_file_info *fi) {
+	/* just flush everything */
+	jgfs_sync();
+	
+	return 0;
+}
+
+int jg_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi) {
+	/* just flush everything */
+	jgfs_sync();
+	
+	return 0;
+}
+
 int jg_readdir_filler(struct jgfs_dir_ent *dir_ent, void *user_ptr) {
 	void *buf = ((void **)user_ptr)[0];
 	fuse_fill_dir_t filler = ((void **)user_ptr)[1];
@@ -384,6 +398,9 @@ struct fuse_operations jg_oper = {
 	
 	.getattr   = jg_getattr,
 	.utimens   = jg_utimens,
+	
+	.fsync     = jg_fsync,
+	.fsyncdir  = jg_fsyncdir,
 	
 	.readdir   = jg_readdir,
 	.readlink  = jg_readlink,

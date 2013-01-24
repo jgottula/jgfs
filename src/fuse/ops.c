@@ -77,6 +77,28 @@ int jg_utimens(const char *path, const struct timespec tv[2]) {
 	return 0;
 }
 
+int jg_chmod(const char *path, mode_t mode) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	return 0;
+}
+
+int jg_chown(const char *path, uid_t uid, gid_t gid) {
+	struct jgfs_dir_clust *parent;
+	struct jgfs_dir_ent   *child;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, &child)) != 0) {
+		return rtn;
+	}
+	
+	return 0;
+}
+
 int jg_fsync(const char *path, int datasync, struct fuse_file_info *fi) {
 	/* just flush everything */
 	jgfs_sync();
@@ -398,6 +420,9 @@ struct fuse_operations jg_oper = {
 	
 	.getattr   = jg_getattr,
 	.utimens   = jg_utimens,
+	
+	.chmod     = jg_chmod,
+	.chown     = jg_chown,
 	
 	.fsync     = jg_fsync,
 	.fsyncdir  = jg_fsyncdir,

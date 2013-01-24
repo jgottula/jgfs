@@ -172,6 +172,46 @@ int jg_readlink(const char *path, char *link, size_t size) {
 	return 0;
 }
 
+int jg_symlink(const char *target, const char *path) {
+	struct jgfs_dir_clust *parent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
+		return rtn;
+	}
+	
+	char *path_last = strrchr(path, '/') + 1;
+	if (path_last == NULL || path_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	}
+	
+	return jgfs_create_symlink(parent, path_last, target);
+}
+
+int jg_rename(const char *path, const char *newpath) {
+	char *newpath_last = strrchr(newpath, '/') + 1;
+	if (newpath_last == NULL || newpath_last[0] == '\0') {
+		/* most applicable errno */
+		return -EINVAL;
+	} else if (strlen(newpath_last) > JGFS_NAME_LIMIT) {
+		return -ENAMETOOLONG;
+	}
+	
+	struct jgfs_dir_clust *old_parent, *new_parent;
+	struct jgfs_dir_ent *dir_ent;
+	int rtn;
+	if ((rtn = jgfs_lookup(path, &old_parent, &dir_ent)) != 0 ||
+		(rtn = jgfs_lookup(newpath, &new_parent, NULL)) != 0) {
+		return rtn;
+	}
+	
+	/* rename the dir ent */
+	strlcpy(dir_ent->name, newpath_last, JGFS_NAME_LIMIT + 1);
+	
+	/* transplant it (even if it's the same directory) */
+	return jgfs_move_ent(dir_ent, new_parent);
+}
+
 int jg_mknod(const char *path, mode_t mode, dev_t dev) {
 	struct jgfs_dir_clust *parent;
 	int rtn;
@@ -240,46 +280,6 @@ int jg_rmdir(const char *path) {
 	}
 	
 	return jgfs_delete_ent(parent, child, true);
-}
-
-int jg_symlink(const char *target, const char *path) {
-	struct jgfs_dir_clust *parent;
-	int rtn;
-	if ((rtn = jgfs_lookup(path, &parent, NULL)) != 0) {
-		return rtn;
-	}
-	
-	char *path_last = strrchr(path, '/') + 1;
-	if (path_last == NULL || path_last[0] == '\0') {
-		/* most applicable errno */
-		return -EINVAL;
-	}
-	
-	return jgfs_create_symlink(parent, path_last, target);
-}
-
-int jg_rename(const char *path, const char *newpath) {
-	char *newpath_last = strrchr(newpath, '/') + 1;
-	if (newpath_last == NULL || newpath_last[0] == '\0') {
-		/* most applicable errno */
-		return -EINVAL;
-	} else if (strlen(newpath_last) > JGFS_NAME_LIMIT) {
-		return -ENAMETOOLONG;
-	}
-	
-	struct jgfs_dir_clust *old_parent, *new_parent;
-	struct jgfs_dir_ent *dir_ent;
-	int rtn;
-	if ((rtn = jgfs_lookup(path, &old_parent, &dir_ent)) != 0 ||
-		(rtn = jgfs_lookup(newpath, &new_parent, NULL)) != 0) {
-		return rtn;
-	}
-	
-	/* rename the dir ent */
-	strlcpy(dir_ent->name, newpath_last, JGFS_NAME_LIMIT + 1);
-	
-	/* transplant it (even if it's the same directory) */
-	return jgfs_move_ent(dir_ent, new_parent);
 }
 
 int jg_open(const char *path, struct fuse_file_info *fi) {
@@ -456,14 +456,14 @@ struct fuse_operations jg_oper = {
 	.readdir   = jg_readdir,
 	.readlink  = jg_readlink,
 	
+	.symlink   = jg_symlink,
+	.rename    = jg_rename,
+	
 	.mknod     = jg_mknod,
 	.mkdir     = jg_mkdir,
 	
 	.unlink    = jg_unlink,
 	.rmdir     = jg_rmdir,
-	
-	.symlink   = jg_symlink,
-	.rename    = jg_rename,
 	
 	.open      = jg_open,
 	

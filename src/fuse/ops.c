@@ -391,8 +391,8 @@ int jg_write(const char *path, const char *buf, size_t size, off_t offset,
 	child->mtime = time(NULL);
 	
 	if (offset + size > child->size) {
-		if ((rtn = jgfs_enlarge(child, offset + size)) != 0) {
-			return rtn;
+		if (!jgfs_enlarge(child, offset + size)) {
+			return -ENOSPC;
 		}
 	}
 	

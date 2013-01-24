@@ -22,7 +22,7 @@ struct jgfs jgfs = {
 	.fat  = NULL,
 };
 
-static uint16_t clusters_total = 0;
+static uint16_t fs_clusters = 0;
 
 
 static void jgfs_msync(void) {
@@ -107,10 +107,10 @@ static void jgfs_init_real(const char *dev_path,
 	jgfs.rsvd = jgfs_get_sect(JGFS_HDR_SECT + 1);
 	jgfs.fat  = jgfs_get_sect(jgfs.hdr->s_rsvd);
 	
-	clusters_total = (jgfs.hdr->s_total - (jgfs.hdr->s_rsvd +
-		jgfs.hdr->s_fat)) / jgfs.hdr->s_per_c;
+	fs_clusters = (jgfs.hdr->s_total -
+		(jgfs.hdr->s_rsvd + jgfs.hdr->s_fat)) / jgfs.hdr->s_per_c;
 	
-	if (jgfs.hdr->s_fat < CEIL(clusters_total, JGFS_FENT_PER_S)) {
+	if (jgfs.hdr->s_fat < CEIL(fs_clusters, JGFS_FENT_PER_S)) {
 		errx(1, "fat is too small");
 	}
 }
@@ -150,8 +150,7 @@ void jgfs_new(const char *dev_path,
 	
 	jgfs_init_real(dev_path, &new_hdr);
 	
-	for (uint16_t i = clusters_total;
-		i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
+	for (uint16_t i = fs_clusters; i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
 		jgfs.fat[i / JGFS_FENT_PER_S].entries[i % JGFS_FENT_PER_S] = FAT_OOB;
 	}
 	
@@ -188,7 +187,7 @@ void *jgfs_get_clust(fat_ent_t clust_num) {
 	if (clust_num > FAT_LAST) {
 		errx(1, "jgfs_get_clust: tried to access past FAT_LAST "
 			"(clust %#06" PRIx16 ")", clust_num);
-	} else if (clust_num >= clusters_total) {
+	} else if (clust_num >= fs_clusters) {
 		errx(1, "jgfs_get_clust: tried to access nonexistent cluster "
 			"(clust %#06" PRIx16 ")", clust_num);
 	}
@@ -204,8 +203,8 @@ fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
 	if (fat_sect >= jgfs.hdr->s_fat) {
 		errx(1, "jgfs_fat_get: tried to access past s_fat "
 			"(fat %#06" PRIx16 ")", addr);
-	} else if (addr >= clusters_total) {
-		errx(1, "jgfs_fat_get: tried to access past clusters_total "
+	} else if (addr >= fs_clusters) {
+		errx(1, "jgfs_fat_get: tried to access non-real entry "
 			"(fat %#06" PRIx16 ")", addr);
 	}
 	

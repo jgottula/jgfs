@@ -148,6 +148,9 @@ fat_ent_t jgfs_fat_read(fat_ent_t addr);
 /* write an entry to the fat */
 void jgfs_fat_write(fat_ent_t addr, fat_ent_t val);
 
+/* get a pointer to a fat entry */
+fat_ent_t *jgfs_fat_get(fat_ent_t addr);
+
 /* get a free cluster address at or after start, or return false on failure */
 bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest);
 

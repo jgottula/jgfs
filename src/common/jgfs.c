@@ -227,6 +227,21 @@ void jgfs_fat_write(fat_ent_t addr, fat_ent_t val) {
 	jgfs.fat[fat_sect].entries[fat_idx] = val;
 }
 
+fat_ent_t *jgfs_fat_get(fat_ent_t addr) {
+	uint16_t fat_sect = addr / JGFS_FENT_PER_S;
+	uint16_t fat_idx  = addr % JGFS_FENT_PER_S;
+	
+	if (fat_sect >= jgfs.hdr->s_fat) {
+		errx(1, "jgfs_fat_get: tried to access past s_fat "
+			"(fat %#06" PRIx16 ")", addr);
+	} else if (addr > clusters_total) {
+		errx(1, "jgfs_fat_get: tried to access past clusters_total "
+			"(fat %#06" PRIx16 ")", addr);
+	}
+	
+	return &(jgfs.fat[fat_sect].entries[fat_idx]);
+}
+
 bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest) {
 	for (uint16_t i = start / JGFS_FENT_PER_S; i < jgfs.hdr->s_fat; ++i) {
 		for (uint16_t j = start % JGFS_FENT_PER_S; j < JGFS_FENT_PER_S; ++j) {

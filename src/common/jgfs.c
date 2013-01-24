@@ -487,11 +487,15 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 			if (jgfs_dir_count_ents(dir_clust) != 0) {
 				return -ENOTEMPTY;
 			}
-		}
-		
-		/* deallocate all the clusters associated with the dir ent */
-		if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
-			return rtn;
+			
+			/* deallocate the directory cluster */
+			jgfs_fat_write(child->begin, FAT_FREE);
+		} else {
+			/* deallocate all the clusters associated with the dir ent */
+			if (child->size != 0 && (rtn = jgfs_reduce(child, 0)) != 0) {
+				errno = rtn;
+				err(1, "jgfs_delete_ent: jgfs_reduce failed");
+			}
 		}
 	}
 	

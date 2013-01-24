@@ -123,32 +123,17 @@ int jg_readlink(const char *path, char *link, size_t size) {
 		return rtn;
 	}
 	
-	/* TODO */
-	return -ENOSYS;
-	
-#if 0
-	struct jgfs_dir_entry dir_ent;
-	int rtn = lookup_path(path, &dir_ent);
-	
-	if (rtn != 0) {
-		return rtn;
-	} else if (dir_ent.attrib != ATTR_SYMLINK) {
-		errx(1, "jgfs_readlink: wrong attrib 0x%x", dir_ent.attrib);
-	}
-	
-	uint8_t buffer[512];
-	read_sector(CLUSTER(dir_ent.begin), buffer);
-	
 	memset(link, 0, size);
 	
-	if (dir_ent.size >= size) {
-		memcpy(link, buffer, size - 1);
+	struct clust *link_sect = jgfs_get_clust(child->begin);
+	
+	if (size < child->size) {
+		memcpy(link, link_sect, size);
 	} else {
-		memcpy(link, buffer, dir_ent.size);
+		memcpy(link, link_sect, child->size);
 	}
 	
 	return 0;
-#endif
 }
 
 int jg_mknod(const char *path, mode_t mode, dev_t dev) {

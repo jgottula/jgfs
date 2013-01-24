@@ -9,8 +9,8 @@
 
 #define SECT_SIZE 0x200
 
-#define JGFS_VER_MAJOR 0x02
-#define JGFS_VER_MINOR 0x02
+#define JGFS_VER_MAJOR 0x03
+#define JGFS_VER_MINOR 0x00
 
 #define JGFS_MAGIC "JGFS"
 
@@ -22,7 +22,7 @@
 	(SECT_SIZE / sizeof(fat_ent_t))
 
 #define JGFS_DENT_PER_C \
-	((jgfs_clust_size() / sizeof(struct jgfs_dir_ent)) - 1)
+	(jgfs_clust_size() / sizeof(struct jgfs_dir_ent))
 
 #define JGFS_VER_EXPAND(_maj, _min) \
 	(((uint16_t)_maj * 0x100) + (uint16_t)_min)
@@ -79,11 +79,6 @@ struct  __attribute__((__packed__)) jgfs_dir_ent {
 };
 
 struct __attribute__((__packed__)) jgfs_dir_clust {
-	fat_ent_t me;         // first cluster of this dir
-	fat_ent_t parent;     // first cluster of parent dir
-	
-	char      reserved[28];
-	
 	struct jgfs_dir_ent entries[0];
 };
 
@@ -120,8 +115,6 @@ _Static_assert(sizeof(struct jgfs_fat_sect) == 0x200,
 	"jgfs_fat_sect must be 512 bytes");
 _Static_assert(sizeof(struct jgfs_dir_ent) == 32,
 	"jgfs_dir_ent must be 32 bytes");
-_Static_assert(sizeof(struct jgfs_dir_clust) == 32,
-	"jgfs_dir_clust must be 32 bytes");
 
 
 typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
@@ -162,8 +155,7 @@ bool jgfs_find_free_clust(fat_ent_t start, fat_ent_t *dest);
 uint16_t jgfs_count_fat(fat_ent_t target);
 
 /* initialize (zero out) a dir cluster with no entries */
-void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust, fat_ent_t me,
-	fat_ent_t parent);
+void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust);
 
 /* find child with child_name in parent; return posix error code on failure */
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,

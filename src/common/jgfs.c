@@ -157,7 +157,7 @@ void jgfs_new(const char *dev_path,
 	
 	/* initialize the root directory cluster */
 	struct jgfs_dir_clust *root_dir_clust = jgfs_get_clust(FAT_ROOT);
-	jgfs_init_dir_clust(root_dir_clust, FAT_ROOT, FAT_ROOT);
+	jgfs_init_dir_clust(root_dir_clust);
 	
 	jgfs_fat_write(FAT_ROOT, FAT_EOF);
 }
@@ -254,31 +254,19 @@ uint16_t jgfs_count_fat(fat_ent_t target) {
 	return count;
 }
 
-void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust, fat_ent_t me,
-	fat_ent_t parent) {
+void jgfs_init_dir_clust(struct jgfs_dir_clust *dir_clust) {
 	memset(dir_clust, 0, jgfs_clust_size());
-	dir_clust->me     = me;
-	dir_clust->parent = parent;
 }
 
 int jgfs_lookup_child(const char *child_name, struct jgfs_dir_clust *parent,
 	struct jgfs_dir_ent **child) {
-	fat_ent_t parent_addr = parent->me;
-	struct jgfs_dir_clust *parent_n = parent;
 	
-next_dir_clust:
-	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
-		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (strncmp(this_ent->name, child_name, JGFS_NAME_LIMIT + 1) == 0) {
 			*child = this_ent;
 			return 0;
 		}
-	}
-	
-	/* try the next cluster in the directory, if present */
-	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
-		parent_n = jgfs_get_clust(parent_addr);
-		goto next_dir_clust;
 	}
 	
 	return -ENOENT;
@@ -336,21 +324,11 @@ int jgfs_lookup(const char *path, struct jgfs_dir_clust **parent,
 uint32_t jgfs_dir_count_ents(struct jgfs_dir_clust *parent) {
 	uint32_t count = 0;
 	
-	fat_ent_t parent_addr = parent->me;
-	struct jgfs_dir_clust *parent_n = parent;
-	
-next_dir_clust:
-	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
-		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] != '\0') {
 			++count;
 		}
-	}
-	
-	/* try the next cluster in the directory, if present */
-	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
-		parent_n = jgfs_get_clust(parent_addr);
-		goto next_dir_clust;
 	}
 	
 	return count;
@@ -358,24 +336,14 @@ next_dir_clust:
 
 int jgfs_dir_foreach(jgfs_dir_func_t func, struct jgfs_dir_clust *parent,
 	void *user_ptr) {
-	fat_ent_t parent_addr = parent->me;
-	struct jgfs_dir_clust *parent_n = parent;
-	
-next_dir_clust:
-	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
-		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] != '\0') {
 			int rtn;
 			if ((rtn = func(this_ent, user_ptr)) != 0) {
 				return rtn;
 			}
 		}
-	}
-	
-	/* try the next cluster in the directory, if present */
-	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
-		parent_n = jgfs_get_clust(parent_addr);
-		goto next_dir_clust;
 	}
 	
 	return 0;
@@ -392,32 +360,15 @@ int jgfs_create_ent(struct jgfs_dir_clust *parent,
 		return -EEXIST;
 	}
 	
-	fat_ent_t parent_addr = parent->me;
-	struct jgfs_dir_clust *parent_n = parent;
-	
 	struct jgfs_dir_ent *empty_ent;
-next_dir_clust:
-	for (struct jgfs_dir_ent *this_ent = parent_n->entries;
-		this_ent < parent_n->entries + JGFS_DENT_PER_C; ++this_ent) {
+	for (struct jgfs_dir_ent *this_ent = parent->entries;
+		this_ent < parent->entries + JGFS_DENT_PER_C; ++this_ent) {
 		if (this_ent->name[0] == '\0') {
 			empty_ent = this_ent;
 			goto found;
 		}
 	}
 	
-	/* try the next cluster in the directory, if present */
-	if ((parent_addr = jgfs_fat_read(parent_addr)) != FAT_EOF) {
-		parent_n = jgfs_get_clust(parent_addr);
-		goto next_dir_clust;
-	}
-	
-	/* TODO: on failure to find an empty entry, extend the directory to another
-	 * cluster and increase its size accordingly */
-	/* NOTE: this will require finding the parent's parent so we can increase
-	 * the parent's size */
-	/* NOTE: this means we need to specially handle the root dir */
-	
-	/* TODO: on failure to allocate a new cluster, return -ENOSPC */
 	return -ENOSPC;
 	
 found:
@@ -452,6 +403,13 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 		return -ENAMETOOLONG;
 	}
 	
+	fat_ent_t dest_addr;
+	/* make sure a free cluster exists before we bother adding a dir ent to the
+	 * parent directory */
+	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+		return -ENOSPC;
+	}
+	
 	struct jgfs_dir_ent new_ent, *created_ent;
 	memset(&new_ent, 0, sizeof(new_ent));
 	strlcpy(new_ent.name, name, JGFS_NAME_LIMIT + 1);
@@ -466,21 +424,10 @@ int jgfs_create_dir(struct jgfs_dir_clust *parent, const char *name) {
 		return rtn;
 	}
 	
-	fat_ent_t dest_addr;
-	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
-		/* if we can't allocate a cluster for the directory, go back and
-		 * delete the directory entry so things are in a consistent state */
-		if ((errno = jgfs_delete_ent(parent, name, true)) != 0) {
-			err(1, "jgfs_create_dir: could not undo dir ent creation");
-		}
-		
-		return -ENOSPC;
-	}
-	
 	created_ent->begin = dest_addr;
 	
 	struct jgfs_dir_clust *dir_clust = jgfs_get_clust(dest_addr);
-	jgfs_init_dir_clust(dir_clust, dest_addr, parent->me);
+	jgfs_init_dir_clust(dir_clust);
 	
 	jgfs_fat_write(dest_addr, FAT_EOF);
 	
@@ -492,6 +439,13 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	if (strlen(name) > JGFS_NAME_LIMIT ||
 		strlen(target) > jgfs_clust_size() - 1) {
 		return -ENAMETOOLONG;
+	}
+	
+	fat_ent_t dest_addr;
+	/* make sure a free cluster exists before we bother adding a dir ent to the
+	 * parent directory */
+	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
+		return -ENOSPC;
 	}
 	
 	struct jgfs_dir_ent new_ent, *created_ent;
@@ -506,17 +460,6 @@ int jgfs_create_symlink(struct jgfs_dir_clust *parent, const char *name,
 	int rtn;
 	if ((rtn = jgfs_create_ent(parent, &new_ent, &created_ent)) != 0) {
 		return rtn;
-	}
-	
-	fat_ent_t dest_addr;
-	if (!jgfs_find_free_clust(FAT_ROOT, &dest_addr)) {
-		/* if we can't allocate a cluster for the symlink, go back and
-		 * delete the directory entry so things are in a consistent state */
-		if ((errno = jgfs_delete_ent(parent, name, true)) != 0) {
-			err(1, "jgfs_create_symlink: could not undo dir ent creation");
-		}
-		
-		return -ENOSPC;
 	}
 	
 	created_ent->begin = dest_addr;
@@ -555,24 +498,7 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, const char *name,
 	/* erase this dir ent from the parent dir cluster */
 	memset(child, 0, sizeof(*child));
 	
-	/* if we erased the last dir ent in a dir cluster, deallocate it */
-	jgfs_condense_dir_clust(parent);
-	
 	return 0;
-}
-
-void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust) {
-	/* TODO:
-	 * - check for clusters in this dir that have no entries and delete them
-	 *   - but NOT if it is the only cluster in that directory
-	 *   - set the previous cluster's fat value (or the parent dir_ent's begin
-	 *     value) to what the empty cluster's fat value was (EOF or otherwise)
-	 *   - update all the parent's dir clusters to have 'me' set to the new
-	 *     begin value if it was modified
-	 *   - update the parent dir_ent's size
-	 */
-	
-	warnx("jgfs_condense_dir_clust: not implemented");
 }
 
 int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {

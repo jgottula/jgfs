@@ -607,11 +607,69 @@ int jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
 }
 
 int jgfs_enlarge(struct jgfs_dir_ent *dir_ent, uint32_t new_size) {
-	if (new_size >= dir_ent->size) {
+	if (new_size <= dir_ent->size) {
 		errx(1, "jgfs_enlarge: new_size is not larger");
 	}
 	
-	/* TODO */
+	bool nospc = false;
+	uint16_t clust_before = CEIL(dir_ent->size, jgfs_clust_size()),
+		clust_after = CEIL(new_size, jgfs_clust_size());
+	fat_ent_t new_addr;
 	
-	return -ENOSYS;
+	/* special case for zero-size files */
+	if (dir_ent->size == 0) {
+		if (jgfs_find_free_clust(FAT_ROOT, &new_addr)) {
+			dir_ent->begin = new_addr;
+			jgfs_fat_write(new_addr, FAT_EOF);
+			
+			clust_before = 1;
+		} else {
+			return -ENOSPC;
+		}
+	}
+	
+	fat_ent_t *prev = &dir_ent->begin;
+	
+	for (uint16_t i = 1; i <= clust_after; ++i) {
+		/* this means the filesystem is inconsistent */
+		if (*prev == FAT_EOF && i < clust_before) {
+			warnx("jgfs_enlarge: found premature FAT_EOF in clust chain");
+			clust_before = i;
+		}
+		
+		if (i >= clust_before) {
+			if (jgfs_find_free_clust(FAT_ROOT, &new_addr)) {
+				*prev = new_addr;
+				jgfs_fat_write(new_addr, FAT_EOF);
+			} else {
+				clust_after = i - 1;
+				nospc = true;
+				break;
+			}
+		}
+		
+		prev = jgfs_fat_get(*prev);
+	}
+	
+	fat_ent_t data_addr = dir_ent->begin;
+	for (uint32_t i = 0; i < clust_after * jgfs_clust_size();
+		i += jgfs_clust_size()) {
+		if (dir_ent->size < i + jgfs_clust_size()) {
+			struct clust *data_clust = jgfs_get_clust(data_addr);
+			
+			if (dir_ent->size > i) {
+				/* partial zero fill */
+				memset(data_clust, 0, dir_ent->size % jgfs_clust_size());
+			} else {
+				/* full zero fill */
+				memset(data_clust, 0, jgfs_clust_size());
+			}
+		}
+		
+		data_addr = jgfs_fat_read(data_addr);
+	}
+	
+	dir_ent->size = new_size;
+	
+	return (nospc ? -ENOSPC : 0);
 }

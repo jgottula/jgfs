@@ -199,9 +199,6 @@ int jgfs_delete_ent(struct jgfs_dir_clust *parent, struct jgfs_dir_ent *child,
 int jgfs_move_ent(struct jgfs_dir_ent *dir_ent,
 	struct jgfs_dir_clust *new_parent);
 
-/* deallocate unused clusters from a directory */
-void jgfs_condense_dir_clust(struct jgfs_dir_clust *dir_clust);
-
 /* reduce the size of a file */
 void jgfs_reduce(struct jgfs_dir_ent *dir_ent, uint32_t new_size);
 

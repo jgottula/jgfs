@@ -120,8 +120,10 @@ void jgfs_init(const char *dev_path) {
 	jgfs_init_real(dev_path, NULL);
 }
 
-void jgfs_new(const char *dev_path,
+void jgfs_new(const char *dev_path, bool zero, const char *label,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c) {
+	warnx("making new jgfs with label '%s'", label);
+	
 	struct jgfs_hdr new_hdr;
 	
 	memset(&new_hdr, 0, sizeof(new_hdr));
@@ -149,10 +151,29 @@ void jgfs_new(const char *dev_path,
 	new_hdr.root_dir_ent.size  = SECT_SIZE * s_per_c;
 	new_hdr.root_dir_ent.begin = FAT_ROOT;
 	
+	strlcpy(new_hdr.label, label, JGFS_LABEL_LIMIT + 1);
+	
 	jgfs_init_real(dev_path, &new_hdr);
 	
-	for (uint16_t i = fs_clusters; i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
-		jgfs.fat[i / JGFS_FENT_PER_S].entries[i % JGFS_FENT_PER_S] = FAT_OOB;
+	for (uint16_t i = 0; i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
+		fat_ent_t *entry =
+			&jgfs.fat[i / JGFS_FENT_PER_S].entries[i % JGFS_FENT_PER_S];
+		
+		if (i < fs_clusters) {
+			*entry = FAT_FREE;
+		} else {
+			*entry = FAT_OOB;
+		}
+	}
+	
+	if (zero) {
+		warnx("zeroing out data clusters");
+		
+		for (uint16_t i = 0; i < fs_clusters; ++i) {
+			void *clust = jgfs_get_clust(i);
+			
+			memset(clust, 0, jgfs_clust_size());
+		}
 	}
 	
 	/* initialize the root directory cluster */

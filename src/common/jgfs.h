@@ -10,13 +10,14 @@
 #define SECT_SIZE 0x200
 
 #define JGFS_VER_MAJOR 0x03
-#define JGFS_VER_MINOR 0x00
+#define JGFS_VER_MINOR 0x01
 
 #define JGFS_MAGIC "JGFS"
 
 #define JGFS_HDR_SECT 1
 
-#define JGFS_NAME_LIMIT 19
+#define JGFS_NAME_LIMIT  19
+#define JGFS_LABEL_LIMIT 19
 
 #define JGFS_FENT_PER_S \
 	(SECT_SIZE / sizeof(fat_ent_t))
@@ -97,7 +98,9 @@ struct __attribute__((__packed__)) jgfs_hdr {
 	
 	struct jgfs_dir_ent root_dir_ent; // root directory entry
 	
-	char     reserved[0x1d0];
+	char label[JGFS_LABEL_LIMIT + 1];
+	
+	char     reserved[0x1bc];
 };
 
 struct jgfs {
@@ -122,8 +125,9 @@ typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
 
 /* load jgfs from the device at dev_path */
 void jgfs_init(const char *dev_path);
-/* make new jgfs on the device at dev_path with the given parameters */
-void jgfs_new(const char *dev_path,
+/* make new jgfs on the device at dev_path with the given parameters, optionally
+ * zeroing out the data clusters */
+void jgfs_new(const char *dev_path, bool zero, const char *label,
 	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
 /* sync and close the filesystem */
 void jgfs_done(void);

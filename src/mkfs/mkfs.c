@@ -2,7 +2,7 @@
 #include "../common/jgfs.h"
 
 
-#define MKFS_ZERO  true
+#define MKFS_ZERO  false
 #define MKFS_LABEL "mkjgfs"
 
 /* these values are for ZIP100 */

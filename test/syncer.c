@@ -5,11 +5,11 @@
 int main(int argc, char **argv) {
 	int fd;
 	
-	if ((fd = open("/mnt/0/file", O_RDONLY)) != 0) {
+	if ((fd = open(argv[1], O_RDONLY)) == -1) {
 		err(1, "open failed");
 	}
 	
-	if (syncfs(fd) != 0) {
+	if (syncfs(fd) == -1) {
 		err(1, "syncfs failed");
 	}
 	

@@ -3,11 +3,11 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-	if (mkdir("/mnt/0/dir", 0755) != 0) {
+	if (mkdir("/mnt/0/dir", 0755) == -1) {
 		err(1, "mkdir failed");
 	}
 	
-	if (rename("/mnt/0/dir", "/mnt/0/dir/sub") != 0) {
+	if (rename("/mnt/0/dir", "/mnt/0/dir/sub") == -1) {
 		err(1, "rename failed");
 	}
 	

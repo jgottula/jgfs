@@ -102,7 +102,8 @@ static void jgfs_init_real(const char *dev_path,
 	}
 	
 	if (dev_sect < jgfs.hdr->s_total) {
-		errx(1, "filesystem exceeds device bounds");
+		errx(1, "filesystem exceeds device bounds (%" PRIu32 " > %" PRIu64 ")",
+			jgfs.hdr->s_total, dev_sect);
 	}
 	
 	jgfs.rsvd = jgfs_get_sect(JGFS_HDR_SECT + 1);

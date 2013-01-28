@@ -4,18 +4,20 @@ fs structure:
 - checksum for fs header
 - longer filenames
 
+jgfs:
+- reduce number of functions
+- abstract directories
+- consolidate dir functionality (ONE function, so multi-cluster dirs are easy)
+- enforce character set in names
+
 mkfs:
 - configurable reserved area
 
 fuse:
-- check all syscalls for proper behavior
-- cover all relevant errno values from the manpage
-- reduce usage of unexplained constants
-- do better checking of all limits (filename length etc)
-- rewrite to use mmap
-  - set up an atexit handler to msync and munmap
-  - also msync/munmap in jgfs_destroy
-  - set pointer(s) to NULL to avoid double-unmapping
-- implement cluster sizes other than 1
 - implement multi-cluster directories
-- abstract directories
+- touch directory dir_ents whenever their contents are changed in any way
+  (need specifics on this)
+- fsync/msync on writes if possible
+
+license:
+- add source code headers (jgsys also): adapt AVRm68k header

@@ -1,5 +1,9 @@
 jgfsck
 
+*******************
+THIS IS OUT OF DATE
+*******************
+
 header:
 - check magic number
 - check version
@@ -16,6 +20,8 @@ header:
   - must be at least as large as reserved area + fat + root dir (1 cluster)
   - should not be larger than reserved + largest possible fat + max clusters
     - max clusters is FAT_LAST + 1
+- check reserved size
+  - must be at least 2 sectors (for vbr + hdr)
 - check fat size
   - cannot be zero
   - should be at least large enough for all clusters present in the filesystem

@@ -34,7 +34,7 @@ clean:
 	rm -rf $(wildcard bin/*) $(wildcard src/*/*.o) $(wildcard src/*/*.dep)
 
 backup:
-	cd .. && tar -acvf jgfs-$(TIMESTAMP).tar.xz jgfs/
+	cd .. && tar -acvf backup/jgfs-$(TIMESTAMP).tar.xz jgfs/
 
 
 $(FUSE_BIN): $(filter src/fuse/%.o,$(OBJS)) $(COMMON_OBJS)

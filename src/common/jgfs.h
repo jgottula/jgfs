@@ -11,6 +11,7 @@
 
 #define JGFS_VER_MAJOR 0x03
 #define JGFS_VER_MINOR 0x01
+#define JGFS_VER_TOTAL 0x0301
 
 #define JGFS_MAGIC "JGFS"
 

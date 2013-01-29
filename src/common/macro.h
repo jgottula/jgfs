@@ -9,5 +9,8 @@
 		(_b) = (_temp_##_a_##_b); \
 	} while (0);
 
+#define STRIFY(_s) _STRIFY(_s)
+#define _STRIFY(_s) #_s
+
 
 #endif

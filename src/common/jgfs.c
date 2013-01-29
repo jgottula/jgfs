@@ -121,9 +121,34 @@ void jgfs_init(const char *dev_path) {
 	jgfs_init_real(dev_path, NULL);
 }
 
-void jgfs_new(const char *dev_path, bool zero, const char *label,
-	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c) {
-	warnx("making new jgfs with label '%s'", label);
+void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
+	warnx("making new jgfs with label '%s'", param->label);
+	
+	if (param->s_total == 0) {
+		warnx("using entire device");
+		
+		int temp_fd;
+		if ((temp_fd = open(dev_path, O_RDONLY)) == -1) {
+			err(1, "failed to open '%s'", dev_path);
+		}
+		
+		param->s_total = lseek(temp_fd, 0, SEEK_END) / SECT_SIZE;
+		close(temp_fd);
+	}
+	
+	if (param->s_per_c == 0) {
+		param->s_per_c = 1;
+		while (param->s_total / param->s_per_c > FAT_LAST + 1) {
+			param->s_per_c *= 2;
+		}
+		
+		warnx("using best cluster size: %u byte clusters",
+			param->s_per_c * SECT_SIZE);
+	}
+	
+	if (param->s_rsvd < 2) {
+		errx(1, "must have two or more reserved sectors (vbr + hdr)");
+	}
 	
 	struct jgfs_hdr new_hdr;
 	
@@ -133,13 +158,19 @@ void jgfs_new(const char *dev_path, bool zero, const char *label,
 	new_hdr.ver_major = JGFS_VER_MAJOR;
 	new_hdr.ver_minor = JGFS_VER_MINOR;
 	
-	new_hdr.s_total = s_total;
-	new_hdr.s_rsvd  = s_rsvd;
+	new_hdr.s_total = param->s_total;
+	new_hdr.s_rsvd  = param->s_rsvd;
 	
-	new_hdr.s_per_c = s_per_c;
+	new_hdr.s_per_c = param->s_per_c;
 	
 	/* iteratively calculate optimal fat size, taking into account the size of
 	 * the fat itself when determining the number of available clusters */
+	/* TODO: fix infinite loop when too small of a cluster size is manually
+	 * specified */
+	/* TODO: fix a possible loop that can happen if there are enough sectors to
+	 * make the fat one sector larger, but that reduces the number of clusters
+	 * such that the fat doesn't need to be so large, so it gets smaller, and
+	 * on and on */
 	uint16_t s_fat = 1;
 	do {
 		new_hdr.s_fat = s_fat;
@@ -149,10 +180,10 @@ void jgfs_new(const char *dev_path, bool zero, const char *label,
 	
 	new_hdr.root_dir_ent.type  = TYPE_DIR;
 	new_hdr.root_dir_ent.mtime = time(NULL);
-	new_hdr.root_dir_ent.size  = SECT_SIZE * s_per_c;
+	new_hdr.root_dir_ent.size  = SECT_SIZE * param->s_per_c;
 	new_hdr.root_dir_ent.begin = FAT_ROOT;
 	
-	strlcpy(new_hdr.label, label, JGFS_LABEL_LIMIT + 1);
+	strlcpy(new_hdr.label, param->label, JGFS_LABEL_LIMIT + 1);
 	
 	jgfs_init_real(dev_path, &new_hdr);
 	
@@ -167,7 +198,19 @@ void jgfs_new(const char *dev_path, bool zero, const char *label,
 		}
 	}
 	
-	if (zero) {
+	if (param->zap) {
+		warnx("zapping the vbr and reserved area");
+		
+		struct sect *sect = jgfs_get_sect(0);
+		memset(sect, 0, SECT_SIZE);
+		
+		for (uint16_t i = 2; i < jgfs.hdr->s_rsvd; ++i) {
+			sect = jgfs_get_sect(i);
+			memset(sect, 0, SECT_SIZE);
+		}
+	}
+	
+	if (param->zero_data) {
 		warnx("zeroing out data clusters");
 		
 		for (uint16_t i = 0; i < fs_clusters; ++i) {

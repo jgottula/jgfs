@@ -104,6 +104,17 @@ struct __attribute__((__packed__)) jgfs_hdr {
 	char     reserved[0x1bc];
 };
 
+struct jgfs_mkfs_param {
+	char label[JGFS_LABEL_LIMIT + 1];
+	
+	uint32_t s_total; // set to zero to fill the device
+	uint16_t s_rsvd;
+	uint16_t s_per_c; // set to zero to auto-choose the best value
+	
+	bool zero_data;   // set to true to zero all data clusters
+	bool zap;         // set to true to zero the vbr and reserved area
+};
+
 struct jgfs {
 	struct jgfs_hdr      *hdr;
 	struct sect          *rsvd;
@@ -126,10 +137,8 @@ typedef int (*jgfs_dir_func_t)(struct jgfs_dir_ent *, void *);
 
 /* load jgfs from the device at dev_path */
 void jgfs_init(const char *dev_path);
-/* make new jgfs on the device at dev_path with the given parameters, optionally
- * zeroing out the data clusters */
-void jgfs_new(const char *dev_path, bool zero, const char *label,
-	uint32_t s_total, uint16_t s_rsvd, uint16_t s_per_c);
+/* make new jgfs on the device at dev_path with the given parameters */
+void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param);
 /* sync and close the filesystem */
 void jgfs_done(void);
 /* sync the filesystem to disk */

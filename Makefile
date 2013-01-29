@@ -5,8 +5,8 @@
 
 TIMESTAMP=$(shell date +'%Y%m%d-%H%M')
 
-CC:=ccache x86_64-unknown-linux-gnu-gcc-4.8.0
-CFLAGS:=-std=gnu11 -O0 -ggdb -flto -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
+CC:=ccache gcc
+CFLAGS:=-std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
 LDFLAGS:=
 
 FUSE_LIBS:=-lbsd -lfuse

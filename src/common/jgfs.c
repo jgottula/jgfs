@@ -197,6 +197,10 @@ uint32_t jgfs_clust_size(void) {
 	return (SECT_SIZE * jgfs.hdr->s_per_c);
 }
 
+uint16_t jgfs_fs_clusters(void) {
+	return fs_clusters;
+}
+
 void *jgfs_get_sect(uint32_t sect_num) {
 	if (sect_num >= dev_sect) {
 		errx(1, "jgfs_get_sect: tried to access past end of device "

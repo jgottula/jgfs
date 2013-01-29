@@ -137,6 +137,8 @@ void jgfs_sync(void);
 
 /* get the cluster size (in bytes) of the loaded filesystem */
 uint32_t jgfs_clust_size(void);
+/* get the number of clusters in the loaded filesystem */
+uint16_t jgfs_fs_clusters(void);
 /* get a pointer to a sector */
 void *jgfs_get_sect(uint32_t sect_num);
 /* get a pointer to a cluster */

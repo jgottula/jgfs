@@ -9,13 +9,15 @@
 
 #define SECT_SIZE 0x200
 
-#define JGFS_VER_MAJOR 0x03
-#define JGFS_VER_MINOR 0x01
-#define JGFS_VER_TOTAL 0x0301
+#define JGFS_VER_MAJOR 0x04
+#define JGFS_VER_MINOR 0x00
+#define JGFS_VER_TOTAL 0x0400
 
 #define JGFS_MAGIC "JGFS"
 
-#define JGFS_HDR_SECT 1
+#define JGFS_VBR_SECT  0
+#define JGFS_HDR_SECT  1
+#define JGFS_BOOT_SECT 2
 
 #define JGFS_NAME_LIMIT  19
 #define JGFS_LABEL_LIMIT 19
@@ -95,7 +97,7 @@ struct __attribute__((__packed__)) jgfs_hdr {
 	
 	uint32_t s_total;   // total number of sectors
 	
-	uint16_t s_rsvd;    // sectors reserved for vbr + header + boot area
+	uint16_t s_boot;    // sectors reserved for the boot area
 	uint16_t s_fat;     // sectors reserved for the fat
 	
 	uint16_t s_per_c;   // sectors per cluster
@@ -111,16 +113,16 @@ struct jgfs_mkfs_param {
 	char label[JGFS_LABEL_LIMIT + 1];
 	
 	uint32_t s_total; // set to zero to fill the device
-	uint16_t s_rsvd;
+	uint16_t s_boot;
 	uint16_t s_per_c; // set to zero to auto-choose the best value
 	
 	bool zero_data;   // set to true to zero all data clusters
-	bool zap;         // set to true to zero the vbr and reserved area
+	bool zap;         // set to true to zero the vbr and boot area
 };
 
 struct jgfs {
 	struct jgfs_hdr      *hdr;
-	struct sect          *rsvd;
+	struct sect          *boot;
 	struct jgfs_fat_sect *fat;
 };
 

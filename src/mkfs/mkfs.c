@@ -12,7 +12,7 @@ struct jgfs_mkfs_param param = {
 	.label = "mkjgfs",
 	
 	.s_total = 0, // auto
-	.s_rsvd  = 8,
+	.s_boot  = 8,
 	.s_per_c = 0, // auto
 	
 	.zero_data = false,
@@ -39,10 +39,10 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		}
 		break;
-	case 'r':
-		switch (sscanf(arg, "%" SCNu16, &param.s_rsvd)) {
+	case 'b':
+		switch (sscanf(arg, "%" SCNu16, &param.s_boot)) {
 		case EOF:
-			warnx("s_rsvd: can't read that!");
+			warnx("s_boot: can't read that!");
 			argp_usage(state);
 		case 1:
 			break;
@@ -92,21 +92,21 @@ static const char args_doc[] = "DEVICE";
 static struct argp_option options[] = {
 	{ NULL, 0, NULL, 0, "string parameters:", 1 },
 	{ "label", 'L', "LABEL", 0,
-		"filesystem label           [default: mkjgfs]", 1 },
+		"filesystem label        [default: mkjgfs]", 1 },
 	
 	{ NULL, 0, NULL, 0, "size parameters:", 2 },
 	{ "size", 's', "NUMBER", 0,
-		"total sectors              [default: auto]", 2, },
-	{ "rsvd", 'r', "NUMBER", 0,
-		"reserved sectors           [default: 8]", 2, },
+		"total sectors           [default: auto]", 2, },
+	{ "boot", 'b', "NUMBER", 0,
+		"boot sectors            [default: 8]", 2, },
 	{ "cluster", 'c', "NUMBER", 0,
-		"sectors per cluster        [default: auto]", 2, },
+		"sectors per cluster     [default: auto]", 2, },
 	
 	{ NULL, 0, NULL, 0, "initialization options:", 3 },
 	{ "zero-data", 'z', NULL, 0,
-		"zero out data clusters     [default: no]", 3 },
+		"zero out data clusters  [default: no]", 3 },
 	{ "zap", 'Z', NULL, 0,
-		"zap vbr and reserved area  [default: no]", 3 },
+		"zap vbr and boot area   [default: no]", 3 },
 	
 	{ 0 }
 };
@@ -123,11 +123,11 @@ int main(int argc, char **argv) {
 	jgfs_sync();
 	
 	/* report some statistics */
-	warnx("total sectors:    %" PRIu32, jgfs.hdr->s_total);
-	warnx("reserved sectors: %" PRIu16, jgfs.hdr->s_rsvd);
-	warnx("fat sectors:      %" PRIu16, jgfs.hdr->s_fat);
-	warnx("cluster size:     %u", jgfs.hdr->s_per_c * SECT_SIZE);
-	warnx("total clusters:   %" PRIu16, jgfs_fs_clusters());
+	warnx("total sectors:  %" PRIu32, jgfs.hdr->s_total);
+	warnx("boot sectors:   %" PRIu16, jgfs.hdr->s_boot);
+	warnx("fat sectors:    %" PRIu16, jgfs.hdr->s_fat);
+	warnx("cluster size:   %u", jgfs.hdr->s_per_c * SECT_SIZE);
+	warnx("total clusters: %" PRIu16, jgfs_fs_clusters());
 	
 	jgfs_done();
 	

@@ -19,7 +19,7 @@ static uint64_t dev_sect = 0;
 
 struct jgfs jgfs = {
 	.hdr  = NULL,
-	.rsvd = NULL,
+	.boot = NULL,
 	.fat  = NULL,
 };
 
@@ -106,11 +106,11 @@ static void jgfs_init_real(const char *dev_path,
 			jgfs.hdr->s_total, dev_sect);
 	}
 	
-	jgfs.rsvd = jgfs_get_sect(JGFS_HDR_SECT + 1);
-	jgfs.fat  = jgfs_get_sect(jgfs.hdr->s_rsvd);
+	jgfs.boot = jgfs_get_sect(JGFS_BOOT_SECT);
+	jgfs.fat  = jgfs_get_sect(JGFS_BOOT_SECT + jgfs.hdr->s_boot);
 	
 	fs_clusters = (jgfs.hdr->s_total -
-		(jgfs.hdr->s_rsvd + jgfs.hdr->s_fat)) / jgfs.hdr->s_per_c;
+		(2 + jgfs.hdr->s_boot + jgfs.hdr->s_fat)) / jgfs.hdr->s_per_c;
 	
 	if (jgfs.hdr->s_fat < CEIL(fs_clusters, JGFS_FENT_PER_S)) {
 		errx(1, "fat is too small");
@@ -146,10 +146,6 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 			param->s_per_c * SECT_SIZE);
 	}
 	
-	if (param->s_rsvd < 2) {
-		errx(1, "must have two or more reserved sectors (vbr + hdr)");
-	}
-	
 	struct jgfs_hdr new_hdr;
 	
 	memset(&new_hdr, 0, sizeof(new_hdr));
@@ -159,7 +155,7 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	new_hdr.ver_minor = JGFS_VER_MINOR;
 	
 	new_hdr.s_total = param->s_total;
-	new_hdr.s_rsvd  = param->s_rsvd;
+	new_hdr.s_boot  = param->s_boot;
 	
 	new_hdr.s_per_c = param->s_per_c;
 	
@@ -174,7 +170,7 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	uint16_t s_fat = 1;
 	do {
 		new_hdr.s_fat = s_fat;
-		s_fat = CEIL(new_hdr.s_total - (new_hdr.s_rsvd + new_hdr.s_fat),
+		s_fat = CEIL(new_hdr.s_total - (2 + new_hdr.s_boot + new_hdr.s_fat),
 			JGFS_FENT_PER_S * new_hdr.s_per_c);
 	} while (new_hdr.s_fat != s_fat);
 	
@@ -199,13 +195,13 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	}
 	
 	if (param->zap) {
-		warnx("zapping the vbr and reserved area");
+		warnx("zapping the vbr and boot area");
 		
-		struct sect *sect = jgfs_get_sect(0);
+		struct sect *sect = jgfs_get_sect(JGFS_VBR_SECT);
 		memset(sect, 0, SECT_SIZE);
 		
-		for (uint16_t i = 2; i < jgfs.hdr->s_rsvd; ++i) {
-			sect = jgfs_get_sect(i);
+		for (uint16_t i = 0; i < jgfs.hdr->s_boot; ++i) {
+			sect = jgfs_get_sect(JGFS_BOOT_SECT + i);
 			memset(sect, 0, SECT_SIZE);
 		}
 	}
@@ -262,7 +258,7 @@ void *jgfs_get_clust(fat_ent_t clust_num) {
 			"(clust %#06" PRIx16 ")", clust_num);
 	}
 	
-	return jgfs_get_sect(jgfs.hdr->s_rsvd + jgfs.hdr->s_fat +
+	return jgfs_get_sect(2 + jgfs.hdr->s_boot + jgfs.hdr->s_fat +
 		(clust_num * jgfs.hdr->s_per_c));
 }
 

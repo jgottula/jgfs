@@ -12,7 +12,7 @@ struct jgfs_mkfs_param param = {
 	.label = "mkjgfs",
 	
 	.s_total = 0, // auto
-	.s_boot  = 8,
+	.s_boot  = 6,
 	.s_per_c = 0, // auto
 	
 	.zero_data = false,

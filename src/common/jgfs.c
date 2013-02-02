@@ -146,6 +146,16 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 			param->s_per_c * SECT_SIZE);
 	}
 	
+	uint16_t s_vbr_hdr_boot = 2 + param->s_boot;
+	
+	if (param->s_total < 2) {
+		errx(1, "filesystem must have at least 2 sectors");
+	} else if (param->s_total < s_vbr_hdr_boot) {
+		errx(1, "filesystem is too small for the boot area requested");
+	} else if (param->s_total == s_vbr_hdr_boot) {
+		errx(1, "filesystem has no room for a fat");
+	}
+	
 	struct jgfs_hdr new_hdr;
 	
 	memset(&new_hdr, 0, sizeof(new_hdr));
@@ -192,6 +202,7 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	
 	jgfs_init_real(dev_path, &new_hdr);
 	
+	/* initialize the fat */
 	for (uint16_t i = 0; i < JGFS_FENT_PER_S * jgfs.hdr->s_fat; ++i) {
 		fat_ent_t *entry =
 			&jgfs.fat[i / JGFS_FENT_PER_S].entries[i % JGFS_FENT_PER_S];
@@ -223,6 +234,10 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 			
 			memset(clust, 0, jgfs_clust_size());
 		}
+	}
+	
+	if (jgfs_fs_clusters() == 0) {
+		errx(1, "filesystem has no room for a root directory");
 	}
 	
 	/* initialize the root directory cluster */

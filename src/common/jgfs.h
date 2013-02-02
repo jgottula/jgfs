@@ -26,6 +26,9 @@
 #define JGFS_DENT_PER_C \
 	(jgfs_clust_size() / sizeof(struct jgfs_dir_ent))
 
+#define JGFS_MAX_FAT_SECT \
+	CEIL(0x10000 / JGFS_FENT_PER_S)
+
 #define JGFS_VER_EXPAND(_maj, _min) \
 	(((uint16_t)_maj * 0x100) + (uint16_t)_min)
 

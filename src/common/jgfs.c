@@ -163,16 +163,25 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	 * the fat itself when determining the number of available clusters */
 	/* TODO: fix infinite loop when too small of a cluster size is manually
 	 * specified */
-	/* TODO: fix a possible loop that can happen if there are enough sectors to
-	 * make the fat one sector larger, but that reduces the number of clusters
-	 * such that the fat doesn't need to be so large, so it gets smaller, and
-	 * on and on */
-	uint16_t s_fat = 1;
+	uint16_t s_fat = 1, last = 0xffff, last_last;
 	do {
-		new_hdr.s_fat = s_fat;
+		last_last = last;
+		last = s_fat;
+		
 		s_fat = CEIL(new_hdr.s_total - (2 + new_hdr.s_boot + new_hdr.s_fat),
 			JGFS_FENT_PER_S * new_hdr.s_per_c);
-	} while (new_hdr.s_fat != s_fat);
+		
+		/* if we are vacillating infinitely between two possible fat sizes, just
+		 * pick the larger size and be done with it */
+		if (s_fat != last && s_fat == last_last) {
+			if (s_fat < last) {
+				s_fat = last;
+			}
+			break;
+		}
+	} while (s_fat != last);
+	
+	new_hdr.s_fat = s_fat;
 	
 	new_hdr.root_dir_ent.type  = TYPE_DIR;
 	new_hdr.root_dir_ent.mtime = time(NULL);

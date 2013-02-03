@@ -10,8 +10,8 @@
 #define SECT_SIZE 0x200
 
 #define JGFS_VER_MAJOR 0x04
-#define JGFS_VER_MINOR 0x00
-#define JGFS_VER_TOTAL 0x0400
+#define JGFS_VER_MINOR 0x01
+#define JGFS_VER_TOTAL 0x0401
 
 #define JGFS_MAGIC "JGFS"
 
@@ -102,11 +102,14 @@ struct __attribute__((__packed__)) jgfs_hdr {
 	
 	uint16_t s_per_c;   // sectors per cluster
 	
-	struct jgfs_dir_ent root_dir_ent; // root directory entry
+	uint32_t ctime;     // fs creation time
+	uint32_t mtime;     // fs last mount time
 	
 	char label[JGFS_LABEL_LIMIT + 1];
 	
-	char     reserved[0x1bc];
+	struct jgfs_dir_ent root_dir_ent; // root directory entry
+	
+	char     reserved[0x1b4];
 };
 
 struct jgfs_mkfs_param {

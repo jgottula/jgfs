@@ -115,6 +115,12 @@ static void jgfs_init_real(const char *dev_path,
 	if (jgfs.hdr->s_fat < CEIL(fs_clusters, JGFS_FENT_PER_S)) {
 		errx(1, "fat is too small");
 	}
+	
+	if (jgfs.hdr->mtime > time(NULL)) {
+		warnx("last mount time is in the future");
+	}
+	
+	jgfs.hdr->mtime = time(NULL);
 }
 
 void jgfs_init(const char *dev_path) {
@@ -193,12 +199,15 @@ void jgfs_new(const char *dev_path, struct jgfs_mkfs_param *param) {
 	
 	new_hdr.s_fat = s_fat;
 	
+	new_hdr.ctime = time(NULL);
+	new_hdr.mtime = 0;
+	
+	strlcpy(new_hdr.label, param->label, JGFS_LABEL_LIMIT + 1);
+	
 	new_hdr.root_dir_ent.type  = TYPE_DIR;
 	new_hdr.root_dir_ent.mtime = time(NULL);
 	new_hdr.root_dir_ent.size  = SECT_SIZE * param->s_per_c;
 	new_hdr.root_dir_ent.begin = FAT_ROOT;
-	
-	strlcpy(new_hdr.label, param->label, JGFS_LABEL_LIMIT + 1);
 	
 	jgfs_init_real(dev_path, &new_hdr);
 	

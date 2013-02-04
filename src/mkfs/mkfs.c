@@ -98,7 +98,7 @@ static struct argp_option options[] = {
 	{ "size", 's', "NUMBER", 0,
 		"total sectors           [default: auto]", 2, },
 	{ "boot", 'b', "NUMBER", 0,
-		"boot sectors            [default: 8]", 2, },
+		"boot sectors            [default: 6]", 2, },
 	{ "cluster", 'c', "NUMBER", 0,
 		"sectors per cluster     [default: auto]", 2, },
 	

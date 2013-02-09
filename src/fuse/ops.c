@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../common/jgfs.h"
+#include "../../lib/jgfs.h"
 
 
 char *dev_path;

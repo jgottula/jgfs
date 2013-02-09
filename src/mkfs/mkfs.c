@@ -2,7 +2,7 @@
 #include <bsd/string.h>
 #include <err.h>
 #include <inttypes.h>
-#include "../common/jgfs.h"
+#include "../../lib/jgfs.h"
 
 
 /* configurable parameters

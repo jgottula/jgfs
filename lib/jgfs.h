@@ -1,10 +1,8 @@
-#ifndef JGFS_COMMON_JGFS_H
-#define JGFS_COMMON_JGFS_H
+#ifndef JGFS_LIB_JGFS_H
+#define JGFS_LIB_JGFS_H
 
 
 #include "macro.h"
-#include <stdbool.h>
-#include <stdint.h>
 
 
 #define SECT_SIZE 0x200

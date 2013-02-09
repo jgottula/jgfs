@@ -104,9 +104,9 @@ static struct argp_option options[] = {
 	
 	{ NULL, 0, NULL, 0, "initialization options:", 3 },
 	{ "zero-data", 'z', NULL, 0,
-		"zero out data clusters  [default: no]", 3 },
+		"zero out data clusters  [off by default]", 3 },
 	{ "zap", 'Z', NULL, 0,
-		"zap vbr and boot area   [default: no]", 3 },
+		"zap vbr and boot area   [off by default]", 3 },
 	
 	{ 0 }
 };

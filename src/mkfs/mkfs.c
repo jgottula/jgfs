@@ -92,15 +92,15 @@ static const char args_doc[] = "DEVICE";
 static struct argp_option options[] = {
 	{ NULL, 0, NULL, 0, "string parameters:", 1 },
 	{ "label", 'L', "LABEL", 0,
-		"filesystem label        [default: mkjgfs]", 1 },
+		"filesystem label  [default: mkjgfs]", 1 },
 	
 	{ NULL, 0, NULL, 0, "size parameters:", 2 },
 	{ "size", 's', "NUMBER", 0,
-		"total sectors           [default: auto]", 2, },
+		"total sectors        [default: auto]", 2, },
 	{ "boot", 'b', "NUMBER", 0,
-		"boot sectors            [default: 6]", 2, },
+		"boot sectors         [default: 6]", 2, },
 	{ "cluster", 'c', "NUMBER", 0,
-		"sectors per cluster     [default: auto]", 2, },
+		"sectors per cluster  [default: auto]", 2, },
 	
 	{ NULL, 0, NULL, 0, "initialization options:", 3 },
 	{ "zero-data", 'z', NULL, 0,

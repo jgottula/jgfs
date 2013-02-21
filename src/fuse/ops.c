@@ -56,7 +56,7 @@ int jg_getattr(const char *path, struct stat *buf) {
 	} else if (child->type == TYPE_SYMLINK) {
 		buf->st_mode = 0777 | S_IFLNK;
 	} else {
-		errx(1, "jgfs_getattr: unknown type 0x%x", child->type);
+		errx(1, "jg_getattr: unknown type 0x%x", child->type);
 	}
 	
 	return 0;

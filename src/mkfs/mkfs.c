@@ -9,7 +9,7 @@
  * NOTE: be sure to update argp documentation when changing these default */
 const char *dev_path = NULL;
 struct jgfs_mkfs_param param = {
-	.label = "mkjgfs",
+	.label = "",
 	
 	.s_total = 0, // auto
 	.s_boot  = 6,

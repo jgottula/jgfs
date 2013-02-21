@@ -110,6 +110,7 @@ $FSCK_OUT)
 clean)
 	rm -rf $(find bin/ -type f)
 	rm -rf $(find src/ lib/ -type f -iname *.o)
+	rm -rf $(find src/ lib/ -type f -iname *.dep)
 	;;
 backup)
 	cd .. && tar -acvf backup/jgfs-$(date +'%Y%m%d-%H%M').tar.xz jgfs/

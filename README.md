@@ -5,6 +5,12 @@ design of `FAT16` while excluding all of the `DOS` legacy nonsense that normally
 comes with a `FAT` filesystem. Its primary intended purpose is for use with the
 `justix` operating system project.
 
+status
+------
+`jgfs` is no longer being actively developed, as `jgfs2` is now the preferred
+filesystem of the `justix` operating system. The filesystem code itself is
+mostly stable, but hasn't been tested on a large scale.
+
 building
 --------
 This project uses Avery Pennarun's implementation of D. J. Bernstein's `redo`
